@@ -1,4 +1,4 @@
-The package computes shortest paths between places taking barriers - such as land masses for ship - or cost surfaces - e.g. based on terrain topography - into account. Apart from relating locations on Earth, spaths can also compute shortest paths more generally on spheres and planes.
+The package computes shortest paths between places taking barriers - such as landmasses for ships - or cost surfaces - e.g. based on terrain topography - into account. Apart from relating locations on Earth, spaths can also compute shortest paths more generally on spheres and planes.
 
 `spaths` uses the `igraph` package's implementation of Dijkstra's (1959) algorithm in identifying the paths. It does not rely on or recycle code from any other spatial least cost path packages.
 

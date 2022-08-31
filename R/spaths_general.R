@@ -75,11 +75,11 @@
 #' 
 #' The algorithm links \code{origins} and \code{destinations} by passing through the centroids of \code{rst}'s non-NA cells.
 #' 
-#' The vignette provides further details on the function.
+#' The \href{../doc/spaths_introduction.html}{vignette} provides further details on the function.
 #' 
 #' @return In the basic cases, i.e. when neither \code{origins} nor \code{destinations} are lists, the function returns a SpatVector lines object with 
 #' \code{output = "lines"} and a data table with \code{output = "distances"}. If \code{origins} or \code{destinations} are lists, it returns a list of 
-#' SpatVectors or data tables. Consult the vignette for further details.
+#' SpatVectors or data tables. Consult the \href{../doc/spaths_introduction.html}{vignette} for further details.
 #' 
 #' The distances are the total transition costs along the shortest paths. If \code{lonlat} is \code{TRUE}, these distances are measured in the same units 
 #' as \code{radius}. If \code{lonlat} is \code{FALSE}, the units are the same as those of \code{yres}, \code{yres}, \code{xmin}, \code{ymin}, 
