@@ -126,8 +126,8 @@ than its serial counterpart. Thus, consider setting \code{paths_ncores = 1}, esp
 In the basic cases, i.e. when neither \code{origins} nor \code{destinations} are lists and \code{update_rst} is not specified, the function 
 returns a SpatVector lines object with \code{output = "lines"} and a data table with \code{output = "distances"}. If \code{origins} or 
 \code{destinations} are lists or \code{update_rst} is specified, it returns a list or nested list of SpatVectors or data tables. In the nested case, 
-the outer list refers to the \code{update_rst} level and the inner list to the \code{origins} and \code{destinations} level. Consult the vignette for 
-further details.
+the outer list refers to the \code{update_rst} level and the inner list to the \code{origins} and \code{destinations} level. Consult the 
+\href{../doc/spaths_introduction.html}{vignette} for further details.
 
 The distances are the total transition costs along the shortest paths. If \code{lonlat} is \code{TRUE} or if \code{dist_comp = "terra"}, these 
 distances are measured in the meters. Otherwise, they use the units of the CRS. If you pass a function to \code{tr_fun}, the total transition cost is 
@@ -142,7 +142,7 @@ around land masses or a hiker traversing mountains.
 
 The algorithm links \code{origins} and \code{destinations} by passing through the centroids of \code{rst}'s non-NA cells.
 
-The vignette provides further details on the function.
+The \href{../doc/spaths_introduction.html}{vignette} provides further details on the function.
 }
 \seealso{
 \link{spaths_general}
