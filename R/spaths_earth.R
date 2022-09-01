@@ -96,6 +96,19 @@
 #' 
 #' @seealso \link{spaths_general}
 #' 
+#' @examples
+#' \dontrun{
+#' # Generate example data
+#' set.seed(20146)
+#' rst <- terra::rast(crs = "epsg:4326", resolution = 1L, vals = sample(c(1L, NA), 64800L, TRUE, c(0.9, 0.1)))
+#' origins <- rnd_locations(5L, output_type = "terra")
+#' destinations <- rnd_locations(5L, output_type = "terra")
+#' 
+#' # Compute shortest paths
+#' spaths_earth(rst, origins)
+#' spaths_earth(rst, origins, destinations)
+#' }
+#' 
 #' @importFrom data.table :=
 #' @importFrom data.table .N
 #' @importFrom data.table .SD
@@ -131,7 +144,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   }
   
   # Convert origins
-  origin_list <- is.list(origins)
+  origin_list <- any(class(origins) == "list")
   if(origin_list) {
     origins <- lapply(origins, convert_points, rst, r_crs, origin_names, origin_nms_null)
   } else {
@@ -141,7 +154,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   # Convert destinations
   dest_specified <- !is.null(destinations)
   if(dest_specified) {
-    dest_list <- is.list(destinations)
+    dest_list <- any(class(destinations) == "list")
     if(dest_list) {
       destinations <- lapply(destinations, convert_points, rst, r_crs, destination_names, destination_nms_null, FALSE)
     } else {
@@ -216,7 +229,8 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   }
   upd_rst_specified <- !is.null(update_rst)
   if(upd_rst_specified) {
-    if(is.list(update_rst)) {
+    update_rst_list <- any(class(update_rst) == "list")
+    if(update_rst_list) {
       update_rst <- lapply(update_rst, function(v) {
         if(all(class(v) != "SpatVector")) v <- terra::vect(v)
         if(terra::crs(v) != r_crs) v <- terra::project(v, r_crs)
@@ -414,7 +428,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   # Compute shortest paths
   if(upd_rst_specified) {
     output_lines <- output == "lines"
-    if(is.list(update_rst)) {
+    if(update_rst_list) {
       if(ncoresg1 && par_lvl == "update_rst") {
         update_rst <- lapply(update_rst, function(V) crd[.(terra::extract(rst_upd, V, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL,
           which = TRUE, on = "c_n"])

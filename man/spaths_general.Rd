@@ -142,6 +142,20 @@ The algorithm links \code{origins} and \code{destinations} by passing through th
 
 The \href{../doc/spaths_introduction.html}{vignette} provides further details on the function.
 }
+\examples{
+\dontrun{
+# Generate example data
+set.seed(20146)
+rst <- matrix(sample(c(1L, NA), 64800L, TRUE, c(0.9, 0.1)), 180L, 360L)
+origins <- rnd_locations(5L)
+destinations <- rnd_locations(5L)
+
+# Compute shortest paths
+spaths_general(rst, 1, 1, -180, -90, origins, radius = 6000)
+spaths_general(rst, 1, 1, -180, -90, origins, destinations, radius = 6000)
+}
+
+}
 \seealso{
 \link{spaths_earth}
 }

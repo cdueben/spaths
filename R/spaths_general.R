@@ -88,6 +88,19 @@
 #' 
 #' @seealso \link{spaths_earth}
 #' 
+#' @examples
+#' \dontrun{
+#' # Generate example data
+#' set.seed(20146)
+#' rst <- matrix(sample(c(1L, NA), 64800L, TRUE, c(0.9, 0.1)), 180L, 360L)
+#' origins <- rnd_locations(5L)
+#' destinations <- rnd_locations(5L)
+#' 
+#' # Compute shortest paths
+#' spaths_general(rst, 1, 1, -180, -90, origins, radius = 6000)
+#' spaths_general(rst, 1, 1, -180, -90, origins, destinations, radius = 6000)
+#' }
+#' 
 #' @export
 spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = NULL, lonlat = TRUE, radius = NULL, output = c("lines", "distances"),
   origin_names = NULL, destination_names = NULL, pairwise = FALSE, contiguity = c("queen", "rook"), tr_fun = NULL, v_matrix = FALSE, tr_directed = TRUE,
@@ -145,7 +158,7 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
   # Convert destinations
   dest_specified <- !is.null(destinations)
   if(dest_specified) {
-    dest_list <- is.list(destinations)
+    dest_list <- any(class(destinations) == "list")
     if(dest_list) {
       destinations <- lapply(destinations, convert_points_g, rst, rst_list, nr, nc, xres, yres, xmin, ymin, destination_names, destination_nms_null, FALSE)
     } else {
@@ -436,17 +449,21 @@ convert_points_g <- function(v, rst, rst_list, nr, nc, xres, yres, xmin, ymin, n
     nms <- unlist(v[, nms], use.names = FALSE)
   }
   if(data.table::is.data.table(v)) {
-    v <- nr * (check_position(v[, 2L][[1L]], ymin, yres, nr, o) + 1L) - check_position(v[, 1L][[1L]], xmin, xres, nc, o)
+    v_col <- check_position(v[, 1L][[1L]], xmin, xres, nc, o)
+    v_row <- check_position(v[, 2L][[1L]], ymin, yres, nr, o)
   } else {
-    v <- nr * (check_position(v[, 2L], ymin, yres, nr, o) + 1L) - check_position(v[, 1L], xmin, xres, nc, o)
+    v_col <- check_position(v[, 1L], xmin, xres, nc, o)
+    v_row <- check_position(v[, 2L], ymin, yres, nr, o)
   }
+  v <- nr * v_col + v_row + 1L
   if(rst_list) {
-    if(any(vapply(rst, function(r) any(is.na(r[v])), logical(1L), USE.NAMES = FALSE))) {
+    if(any(vapply(rst, function(r) anyNA(r[v]), logical(1L), USE.NAMES = FALSE))) {
       report_points(unique(do.call(c, lapply(rst, function(r) which(is.na(r[v]))))), o)
     }
-  } else if(any(is.na(rst[v]))) {
+  } else if(anyNA(rst[v])) {
     report_points(which(is.na(rst[v])), o)
   }
+  v <- nc * v_row + v_col + 1L
   if(!nms_null) v <- data.table::data.table(cls = v, nms = nms)
   return(v)
 }
