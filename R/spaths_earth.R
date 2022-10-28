@@ -59,14 +59,30 @@
 #' of transition cells. Neither does \code{update_rst} alter cell values from any of \code{rst}'s layers.
 #' @param touches Logical specifying the \code{touches} argument of \code{terra::extract} used when \code{update_rst} is not \code{NULL}. It defaults to 
 #' \code{TRUE}. If \code{FALSE}, the function only removes cells on the line render path or with the center point inside a polygon.
+#' @param copy Logical specifying whether to copy paths that are unaffected by \code{update_rst} geometries (\code{TRUE}) rather than re-estimating all 
+#' paths on the grids updated by \code{update_rst} (\code{FALSE}). It defaults to \code{TRUE} and only has an effect when \code{update_rst} is not 
+#' \code{NULL}. If \code{TRUE}, the function first computes paths on the unmodified \code{rst} and then checks which paths' cells intersect with the 
+#' geometries in \code{update_rst}. If you know that all paths are affected by \code{update_rst}, setting \code{copy} to \code{FALSE} can be the more 
+#' efficient choice. This especially holds in two scenarios: (i) if you use multiple cores and \code{par_lvl = "update_rst"}, \code{copy = FALSE} directly 
+#' parallelizes the function over the different grids, incl. the unmodified \code{rst}, rather than waiting for the paths on the initial grid to be 
+#' computed before parallelizing over the remaining grids; (ii) if \code{output = "distances"}, the function only computes distances when 
+#' \code{copy = FALSE}, but engages in the more time consuming task of returning lines for the first grid when \code{copy = TRUE}. Thus, the function 
+#' tends to be faster with \code{copy = TRUE} than with \code{copy = FALSE}, unless quasi all paths are affected by \code{update_rst}, with both 
+#' \code{output = "lines"} and \code{output = "distances"}.
 #' @param round_dist Logical specifying whether to round edge weights, i.e. the transition cost or distance between neighboring cells, to integers. It 
 #' defaults to \code{FALSE}. Setting it to \code{TRUE} reduces the function's RAM requirements slightly.
 #' @param ncores An integer specifying the number of CPU cores to use. It defaults to the number of cores installed on the machine. A value of 1 
 #' accordingly induces a single-threaded process.
-#' @param par_lvl \code{"points"} (default), \code{"points_lists"}, or \code{"update_rst"}, indicating the level at which to parallelize when 
-#' \code{ncores > 1}. \code{"points"} parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list 
+#' @param par_lvl \code{"points"} (default), \code{"points_lists"}, or \code{"update_rst"}, indicating the level at which to parallelize when using 
+#' multiple cores. \code{"points"} parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list 
 #' elements of \code{origins} (and \code{destinations}), if these arguments are lists. \code{"update_rst"} parallelizes over the list of graphs specified 
 #' by \code{rst} and \code{update_rst}.
+#' @param rst_par_lvl \code{"points"} (default), \code{"points_lists"}, or \code{"none"}, indicating the level at which to parallelize the paths 
+#' computations on the unmodified \code{rst} when using multiple cores, \code{update_rst} is not \code{NULL}, \code{par_lvl = "update_rst"}, and 
+#' \code{copy = TRUE}. Because the function requires the paths from the unmodified \code{rst} before looping over the updated grids when 
+#' \code{copy = TRUE}, the parallel structure requested by \code{par_lvl = "update_rst"} only commences after those initial paths have been identified. 
+#' \code{rst_par_lvl} defines the parallel level at which those initial paths are derived. \code{"points"} (default) and \code{"points_list"} are 
+#' equivalent to their counterparts in \code{par_lvl}, \code{"none"} induces a serial, i.e. non-parallel, execution.
 #' @param cluster \code{"PSOCK"} or \code{"FORK"}, indicating the type of \code{parallel} cluster that the function employs when \code{ncores > 1} or 
 #' \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. Windows machines must use \code{"PSOCK"}, 
 #' while Mac and Linux can employ either of the two options.
@@ -100,7 +116,8 @@
 #' \dontrun{
 #' # Generate example data
 #' set.seed(20146)
-#' rst <- terra::rast(crs = "epsg:4326", resolution = 1L, vals = sample(c(1L, NA), 64800L, TRUE, c(0.9, 0.1)))
+#' rst <- terra::rast(crs = "epsg:4326", resolution = 1L, vals = sample(c(1L, NA), 64800L, TRUE,
+#'   c(0.9, 0.1)))
 #' origins <- rnd_locations(5L, output_type = "terra")
 #' destinations <- rnd_locations(5L, output_type = "terra")
 #' 
@@ -120,7 +137,8 @@
 #' @export
 spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", "distances"), origin_names = NULL, destination_names = NULL, pairwise = FALSE,
   contiguity = c("queen", "rook"), dist_comp = c("spaths", "terra"), tr_fun = NULL, v_matrix = FALSE, tr_directed = TRUE, update_rst = NULL, touches = TRUE,
-  round_dist = FALSE, ncores = NULL, par_lvl = c("points", "points_lists", "update_rst"), cluster = NULL, paths_ncores = NULL, verbose = FALSE) {
+  copy = TRUE, round_dist = FALSE, ncores = NULL, par_lvl = c("points", "points_lists", "update_rst"), rst_par_lvl = c("points", "points_lists", "none"),
+  cluster = NULL, paths_ncores = NULL, verbose = FALSE) {
   
   if(length(verbose) != 1L || !is.logical(verbose) || is.na(verbose)) stop("verbose must be logical and of length one")
   if(verbose) message("Checking arguments")
@@ -134,21 +152,21 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   lonlat <- terra::is.lonlat(rst)
   
   # Check origin_names and destination_names
-  origin_nms_null <- is.null(origin_names)
-  if(!origin_nms_null && (!(is.character(origin_names) && length(origin_names) == 1L) || is.na(origin_names))) {
+  origin_nms_specified <- !is.null(origin_names)
+  if(origin_nms_specified && (!(is.character(origin_names) && length(origin_names) == 1L) || is.na(origin_names))) {
     stop("origin_names must be NULL or a character object of length one")
   }
-  destination_nms_null <- is.null(destination_names)
-  if(!destination_nms_null && (!(is.character(destination_names) && length(destination_names) == 1L) || is.na(destination_names))) {
+  destination_nms_specified <- !is.null(destination_names)
+  if(destination_nms_specified && (!(is.character(destination_names) && length(destination_names) == 1L) || is.na(destination_names))) {
     stop("destination_names must be NULL or a character object of length one")
   }
   
   # Convert origins
   origin_list <- any(class(origins) == "list")
   if(origin_list) {
-    origins <- lapply(origins, convert_points, rst, r_crs, origin_names, origin_nms_null)
+    origins <- lapply(origins, convert_points, rst, r_crs, origin_names, origin_nms_specified)
   } else {
-    origins <- convert_points(origins, rst, r_crs, origin_names, origin_nms_null)
+    origins <- convert_points(origins, rst, r_crs, origin_names, origin_nms_specified)
   }
   
   # Convert destinations
@@ -156,9 +174,9 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   if(dest_specified) {
     dest_list <- any(class(destinations) == "list")
     if(dest_list) {
-      destinations <- lapply(destinations, convert_points, rst, r_crs, destination_names, destination_nms_null, FALSE)
+      destinations <- lapply(destinations, convert_points, rst, r_crs, destination_names, destination_nms_specified, FALSE)
     } else {
-      destinations <- convert_points(destinations, rst, r_crs, destination_names, destination_nms_null, FALSE)
+      destinations <- convert_points(destinations, rst, r_crs, destination_names, destination_nms_specified, FALSE)
     }
   } else {
     dest_list <- NULL
@@ -241,6 +259,8 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
       if(terra::crs(update_rst) != r_crs) update_rst <- terra::project(update_rst, r_crs)
     }
     if(length(touches) != 1L || !is.logical(touches) || is.na(touches)) stop("touches must be logical and of length one")
+    if(length(copy) != 1L || !is.logical(copy) || is.na(copy)) stop("copy must be logical and of length one")
+    if(copy) rst_par_lvl <- match.arg(rst_par_lvl)
   }
   if(length(round_dist) != 1L || !is.logical(round_dist) || is.na(round_dist)) stop("round_dist must be logical and of length one")
   if(is.null(ncores)) {
@@ -316,8 +336,8 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   rst <- data.table::as.data.table(terra::adjacent(rst, crd[["c_n"]], contiguity, TRUE)) # Obtain adjacency matrix
   crd[, c_n_c := 1:.N]
   
-  origins <- update_points(origins, origin_list, crd, origin_nms_null)
-  if(dest_specified) destinations <- update_points(destinations, dest_list, crd, destination_nms_null)
+  origins <- update_points(origins, origin_list, crd, origin_nms_specified)
+  if(dest_specified) destinations <- update_points(destinations, dest_list, crd, destination_nms_specified)
   
   if(tr_fun_specified && tr_directed) {
     rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][, to := NULL] # Subset to non-NA destination cells
@@ -385,8 +405,14 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
     if(args_used[8L]) tr_fun_args$nc <- ncores
     if(args_used[9L]) tr_fun_args$cl <- cl
     tr_fun_args <- do.call(tr_fun, tr_fun_args[tr_fun_v])
-    if(!is.vector(tr_fun_args)) stop("tr_fun must return a vector")
-    if(any(tr_fun_args < 0)) stop("tr_fun must not return negative values")
+    if(!is.vector(tr_fun_args)) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
+      stop("tr_fun must return a vector")
+    }
+    if(any(tr_fun_args < 0)) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
+      stop("tr_fun must not return negative values")
+    }
     if(length(tr_fun_args) != NROW(rst)) stop("The number of values returned by tr_fun must equal the number of edges")
     rst <- igraph::set_edge_attr(igraph::graph_from_edgelist(as.matrix(rst), directed = tr_directed), "weight", value = tr_fun_args) # Construct graph
     rm(tr_fun_args, args_used, tr_fun_v)
@@ -408,8 +434,18 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   }
   if(ncoresg1) {
     par_lvl <- match.arg(par_lvl)
-    if(!upd_rst_specified && par_lvl == "update_rst") stop('If par_lvl is "update_rst", update_rst must not be NULL')
+    if(par_lvl == "update_rst") {
+      if(!upd_rst_specified) {
+        if(!is.null(cl)) parallel::stopCluster(cl)
+        stop('If par_lvl is "update_rst", update_rst must not be NULL')
+      }
+      if(copy && !update_rst_list) {
+        if(!is.null(cl)) parallel::stopCluster(cl)
+        stop('If copy is TRUE and update_rst is not a list, par_lvl = "update_rst" does not induce parallelization')
+      }
+    }
     if(!origin_list && dest_specified && !dest_list && par_lvl == "points_lists") {
+      if(!is.null(cl)) parallel::stopCluster(cl)
       stop('If par_lvl is "points_lists", origins or destinations must be a list')
     }
     if(is.null(cl)) {
@@ -429,435 +465,470 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   if(upd_rst_specified) {
     output_lines <- output == "lines"
     if(update_rst_list) {
-      if(ncoresg1 && par_lvl == "update_rst") {
-        update_rst <- lapply(update_rst, function(V) crd[.(terra::extract(rst_upd, V, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL,
-          which = TRUE, on = "c_n"])
-        paths <- function(V) {
-          if(V == 0L) {
-            v <- compute_spaths1(rst, crd[, c("x", "y")], origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list,
-              dest_list, r_crs, output_lines, pairwise, FALSE)
-          } else {
-            v <- compute_spaths1(igraph::delete_vertices(rst, update_rst[[V]]), crd[-update_rst[[V]], c("x", "y")], origins, destinations, dest_specified,
-              origin_nms_null, destination_nms_null, origin_list, dest_list, r_crs, output_lines, pairwise, FALSE)
-          }
-          return(v)
-        }
-        paths <- parallel::parLapply(cl, 0:length(update_rst), paths)
-        if(output_lines) {
-          if(origin_list || (dest_specified && dest_list)) {
-            paths <- lapply(paths, function(P) lapply(P, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs)))
-          } else {
-            paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs))
-          }
-        }
-      } else {
-        paths <- lapply(0:length(update_rst), function(V) {
-          if(V == 0L) {
-            v <- compute_spaths1(rst, crd[, c("x", "y")], origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list,
-              dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
-          } else {
-            v <- crd[.(terra::extract(rst_upd, update_rst[[V]], cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL, which = TRUE, on = "c_n"]
-            v <- compute_spaths1(igraph::delete_vertices(rst, v), crd[-v, c("x", "y")], origins, destinations, dest_specified, origin_nms_null,
-              destination_nms_null, origin_list, dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
-          }
-          return(v)
-        })
-      }
+      update_rst <- lapply(update_rst, function(V) crd[.(terra::extract(rst_upd, V, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL,
+        which = TRUE, on = "c_n"])
     } else {
-      rst_upd <- crd[.(terra::extract(rst_upd, update_rst, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL, which = TRUE, on = "c_n"]
-      rm(update_rst)
-      crd[, c_n := NULL]
-      if(ncoresg1 && par_lvl == "update_rst") {
-        paths <- function(V) {
-          if(V == 1L) {
-            v <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list, dest_list, r_crs,
-              output_lines, pairwise, FALSE)
-          } else {
-            v <- compute_spaths1(igraph::delete_vertices(rst, rst_upd), crd[-rst_upd,], origins, destinations, dest_specified, origin_nms_null,
-              destination_nms_null, origin_list, dest_list, r_crs, output_lines, pairwise, FALSE)
-          }
-          return(v)
-        }
-        paths <- parallel::parLapply(cl, 1:2, paths)
-        if(output_lines) {
-          if(origin_list) {
-            paths <- lapply(paths, function(P) lapply(P, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs)))
-          } else {
-            paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs))
-          }
-        }
-      } else {
-        paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list, dest_list, r_crs,
-          output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
-        rst <- igraph::delete_vertices(rst, rst_upd)
-        crd <- crd[-rst_upd,]
-        rm(rst_upd)
-        paths <- list(paths, compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list, dest_list,
-          r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl))
-      }
+      update_rst <- crd[.(terra::extract(rst_upd, update_rst, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL, which = TRUE, on = "c_n"]
     }
+    rm(rst_upd)
+    crd[, c_n := NULL]
+    if((update_rst_list && any(lengths(update_rst) > 0L)) || (!update_rst_list && length(update_rst) > 0L)) {
+      p_list <- origin_list || (dest_specified && dest_list)
+      if(copy) {
+        if(rst_par_lvl == "none") {
+          p1 <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified, origin_list, dest_list,
+            r_crs, output_lines, pairwise, FALSE, NULL, NULL, NULL, TRUE)
+        } else {
+          p1 <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified, origin_list, dest_list,
+            r_crs, output_lines, pairwise, ncoresg1, ncores, rst_par_lvl, cl, TRUE)
+        }
+        if(p_list) {
+          p2 <- lapply(p1, `[[`, 2L)
+          if(output_lines) p3 <- lapply(p1, `[[`, 3L)
+          p1 <- lapply(p1, `[[`, 1L)
+        } else {
+          p2 <- p1[[2L]]
+          if(output_lines) p3 <- p1[[3L]]
+          p1 <- p1[[1L]]
+        }
+        # Lines output
+        if(output_lines) {
+          if(p_list) {
+            paths <- function(u) {
+              p_affected <- lapply(p1, function(p) unique(p[.(u), "g", nomatch = NULL, on = "cls"][["g"]]))
+              if(any(lengths(p_affected) > 0L)) {
+                rst_u <- igraph::delete_vertices(rst, u)
+                v <- data.table::data.table(c_n_c = 1:NROW(crd))[-u,]
+                p <- function(P_AFFECTED, P1, P2, P3 = NULL) {
+                  if(length(P_AFFECTED) > 0L) {
+                    origin_c <- P2[P_AFFECTED, "origin_c"]
+                    destination_c <- P2[P_AFFECTED, "destination_c"]
+                    if(any(origin_c %in% u)) {
+                      report_points_ust(origin_c, u, TRUE, cl)
+                    }
+                    if(any(destination_c %in% u)) {
+                      report_points_ust(destination_c, u, FALSE, cl)
+                    }
+                    origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                    destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                    P <- crd[-u, c("x", "y")]
+                    if(ncoresg1 && par_lvl == "points") {
+                      P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, function(oc, dc, pa) {
+                        return(P[igraph::shortest_paths(rst_u, oc, dc, output = "vpath", algorithm = "dijkstra")$vpath[[1L]],][, g := pa])
+                      }, origin_c, destination_c, P_AFFECTED, USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
+                      data.table::setorder(P, g)
+                      P <- terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs)
+                    } else {
+                      P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(lapply(1:length(origin_c), function(O) {
+                        return(P[igraph::shortest_paths(rst_u, origin_c[O], destination_c[O], output = "vpath",
+                          algorithm = "dijkstra")$vpath[[1L]],][, g := P_AFFECTED[O]])
+                      }), use.names = FALSE)[, c("g", "x", "y")])
+                      data.table::setorder(P, g)
+                      if(!ncoresg1) P <- terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs)
+                    }
+                  } else {
+                    P <- P1[, c("g", "x", "y")]
+                  }
+                  return(P)
+                }
+                if(ncoresg1 && par_lvl == "points_lists") {
+                  v <- parallel::clusterMap(cl, p, p_affected, p1, p2, USE.NAMES = FALSE, .scheduling = "dynamic")
+                  v <- mapply(function(P, P3) terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs), v, p3, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                } else if(ncoresg1 && par_lvl == "update_rst") {
+                  v <- mapply(p, p_affected, p1, p2, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                } else {
+                  v <- mapply(p, p_affected, p1, p2, p3, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                }
+              } else {
+                if(ncoresg1 && par_lvl == "update_rst") {
+                  v <- lapply(p1, function(p) p[, c("g", "x", "y")])
+                } else {
+                  v <- mapply(function(P1, P3) terra::vect(as.matrix(P1[, c("g", "x", "y")]), type = "line", atts = P3, crs = r_crs), p1, p3,
+                    SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                }
+              }
+              return(v)
+            }
+            if(update_rst_list) {
+              if(ncoresg1 && par_lvl == "update_rst") {
+                paths <- c(list(lapply(p1, function(p) p[, c("g", "x", "y")])), parallel::parLapply(cl, update_rst, paths))
+                rm(p1, p2, update_rst)
+                paths <- lapply(paths, function(p) mapply(function(P, P3) terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs), p, p3,
+                  SIMPLIFY = FALSE, USE.NAMES = FALSE))
+              } else {
+                paths <- c(list(mapply(function(P1, P3) terra::vect(as.matrix(P1[, c("g", "x", "y")]), type = "line", atts = P3, crs = r_crs), p1, p3,
+                  SIMPLIFY = FALSE, USE.NAMES = FALSE)), lapply(update_rst, paths))
+              }
+            } else {
+              paths <- list(mapply(function(P1, P3) terra::vect(as.matrix(P1[, c("g", "x", "y")]), type = "line", atts = P3, crs = r_crs), p1, p3,
+                SIMPLIFY = FALSE, USE.NAMES = FALSE), paths(update_rst))
+            }
+          } else {
+            paths <- function(u) {
+              p_affected <- unique(p1[.(u), "g", nomatch = NULL, on = "cls"][["g"]])
+              if(length(p_affected) > 0L) {
+                origin_c <- p2[p_affected, "origin_c"]
+                destination_c <- p2[p_affected, "destination_c"]
+                if(any(origin_c %in% u)) {
+                  report_points_ust(origin_c, u, TRUE, cl)
+                }
+                if(any(destination_c %in% u)) {
+                  report_points_ust(destination_c, u, FALSE, cl)
+                }
+                v <- data.table::data.table(c_n_c = 1:NROW(crd))[-u,]
+                origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                v <- crd[-u, c("x", "y")]
+                rst_u <- igraph::delete_vertices(rst, u)
+                if(ncoresg1 && par_lvl == "points") {
+                  v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, function(oc, dc, pa) {
+                    return(v[igraph::shortest_paths(rst_u, origin_c[O], destination_c[O], output = "vpath",
+                      algorithm = "dijkstra")$vpath[[1L]],][, g := p_affected[O]])
+                  }, origin_c, destination_c, P_AFFECTED, USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
+                } else {
+                  v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(lapply(1:length(origin_c), function(O) {
+                    return(v[igraph::shortest_paths(rst_u, origin_c[O], destination_c[O], output = "vpath",
+                      algorithm = "dijkstra")$vpath[[1L]],][, g := p_affected[O]])
+                  }), use.names = FALSE)[, c("g", "x", "y")])
+                }
+                data.table::setorder(v, g)
+              } else {
+                v <- p1[, c("g", "x", "y")]
+              }
+              if(!(ncoresg1 && par_lvl == "update_rst")) v <- terra::vect(as.matrix(v), type = "line", atts = p3, crs = r_crs)
+              return(v)
+            }
+            if(update_rst_list) {
+              if(ncoresg1 && par_lvl == "update_rst") {
+                paths <- c(list(p1[, c("g", "x", "y")]), parallel::parLapply(cl, update_rst, paths))
+                rm(p1, p2, update_rst)
+                paths <- lapply(paths, function(p) terra::vect(as.matrix(p), type = "line", atts = p3, crs = r_crs))
+              } else {
+                paths <- c(list(terra::vect(as.matrix(p1[, c("g", "x", "y")]), type = "line", atts = p3, crs = r_crs)), lapply(update_rst, paths))
+              }
+            } else {
+              paths <- list(terra::vect(as.matrix(p1[, c("g", "x", "y")]), type = "line", atts = p3, crs = r_crs), paths(update_rst))
+            }
+          }
+        # Distances output
+        } else {
+          if(p_list) {
+            paths <- function(u) {
+              p_affected <- lapply(p2, function(p) unique(p[.(u), "g", nomatch = NULL, on = "cls"][["g"]]))
+              if(any(lengths(p_affected) > 0L)) {
+                rst_u <- igraph::delete_vertices(rst, u)
+                v <- data.table::data.table(c_n_c = 1:NROW(crd))[-u,]
+                p <- function(P_AFFECTED, P1) {
+                  if(length(P_AFFECTED) > 0L) {
+                    origin_c <- P1[P_AFFECTED, "origin_c"][["origin_c"]]
+                    destination_c <- P1[P_AFFECTED, "destination_c"][["destination_c"]]
+                    if(any(origin_c %in% u)) {
+                      report_points_ust(origin_c, u, TRUE, cl)
+                    }
+                    if(any(destination_c %in% u)) {
+                      report_points_ust(destination_c, u, FALSE, cl)
+                    }
+                    origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                    destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                    P <- data.table::copy(P1[, c("origin", "destination", "distance")])
+                    if(ncoresg1 && par_lvl == "points") {
+                      P[P_AFFECTED, distance := parallel::clusterMap(cl, function(oc, dc) igraph::distances(rst_u, oc, dc, mode = "out",
+                        algorithm = "dijkstra"), origin_c, destination_c, SIMPLIFY = TRUE, USE.NAMES = FALSE)]
+                    } else {
+                      P[P_AFFECTED, distance := vapply(1:length(origin_c), function(O) igraph::distances(rst_u, origin_c[O], destination_c[O],
+                        mode = "out", algorithm = "dijkstra"), numeric(1L), USE.NAMES = FALSE)]
+                    }
+                  } else {
+                    P <- P1[, c("origin", "destination", "distance")]
+                  }
+                  return(P)
+                }
+                if(ncoresg1 && par_lvl == "points_lists") {
+                  v <- parallel::clusterMap(cl, p, p_affected, p1, USE.NAMES = FALSE, .scheduling = "dynamic")
+                } else {
+                  v <- mapply(p, p_affected, p1, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                }
+              } else {
+                v <- lapply(p1, function(p) p[, c("origin", "destination", "distance")])
+              }
+              return(v)
+            }
+            if(update_rst_list) {
+              if(ncoresg1 && par_lvl == "update_rst") {
+                paths <- c(list(lapply(p1, function(p) p[, c("origin", "destination", "distance")])), parallel::parLapply(cl, update_rst, paths))
+              } else {
+                paths <- c(list(lapply(p1, function(p) p[, c("origin", "destination", "distance")])), lapply(update_rst, paths))
+              }
+            } else {
+              paths <- list(lapply(p1, function(p) p[, c("origin", "destination", "distance")]), paths(update_rst))
+            }
+          } else {
+            paths <- function(u) {
+              p_affected <- unique(p2[.(u), "g", nomatch = NULL, on = "cls"][["g"]])
+              if(length(p_affected) > 0L) {
+                origin_c <- p1[p_affected, "origin_c"][["origin_c"]]
+                destination_c <- p1[p_affected, "destination_c"][["destination_c"]]
+                if(any(origin_c %in% u)) {
+                  report_points_ust(origin_c, u, TRUE, cl)
+                }
+                if(any(destination_c %in% u)) {
+                  report_points_ust(destination_c, u, FALSE, cl)
+                }
+                v <- data.table::data.table(c_n_c = 1:NROW(crd))[-u,]
+                origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
+                v <- data.table::copy(p1[, c("origin", "destination", "distance")])
+                rst_u <- igraph::delete_vertices(rst, u)
+                v[p_affected, distance := vapply(1:length(origin_c), function(O) igraph::distances(rst_u, origin_c[O], destination_c[O], mode = "out",
+                  algorithm = "dijkstra"), numeric(1L), USE.NAMES = FALSE)]
+              } else {
+                v <- p1[, c("origin", "destination", "distance")]
+              }
+              return(v)
+            }
+            if(update_rst_list) {
+              if(ncoresg1 && par_lvl == "update_rst") {
+                paths <- c(list(p1[, c("origin", "destination", "distance")]), parallel::parLapply(cl, update_rst, paths))
+              } else {
+                paths <- c(list(p1[, c("origin", "destination", "distance")]), lapply(update_rst, paths))
+              }
+            } else {
+              paths <- list(p1[, c("origin", "destination", "distance")], paths(update_rst))
+            }
+          }
+        }
+      # Not copy
+      } else {
+        if(ncoresg1 && par_lvl == "update_rst") {
+          paths <- function(V) {
+            if(V == 0L) {
+              v <- compute_spaths1(rst, crd[, c("x", "y")], origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified,
+                origin_list, dest_list, r_crs, output_lines, pairwise, FALSE)
+            } else {
+              if(update_rst_list) {
+                v <- compute_spaths1(igraph::delete_vertices(rst, update_rst[[V]]), crd[-update_rst[[V]], c("x", "y")], origins, destinations, dest_specified,
+                  origin_nms_specified, destination_nms_specified, origin_list, dest_list, r_crs, output_lines, pairwise, FALSE)
+              } else {
+                v <- compute_spaths1(igraph::delete_vertices(rst, update_rst), crd[-update_rst, c("x", "y")], origins, destinations, dest_specified,
+                  origin_nms_specified, destination_nms_specified, origin_list, dest_list, r_crs, output_lines, pairwise, FALSE)
+              }
+            }
+            return(v)
+          }
+          if(update_rst_list) {
+            paths <- parallel::parLapply(cl, 0:length(update_rst), paths)
+          } else {
+            paths <- parallel::parLapply(cl, 0:1, paths)
+          }
+          if(output_lines) {
+            if(p_list) {
+              if(origin_list) {
+                if(dest_specified) {
+                  if(dest_list) {
+                    if(pairwise) {
+                      if(origin_nms_specified && destination_nms_specified) {
+                        paths <- lapply(paths, function(P) mapply(function(p, o, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = o[["nms"]], destination = d[["nms"]]), crs = r_crs), P, origins, destinations, SIMPLIFY = FALSE,
+                          USE.NAMES = FALSE))
+                      } else if(origin_nms_specified) {
+                        rm(destinations)
+                        paths <- lapply(paths, function(P) mapply(function(p, o) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = o[["nms"]], destination = 1:NROW(p)), crs = r_crs), P, origins, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                      } else if(destination_nms_specified) {
+                        rm(origins)
+                        paths <- lapply(paths, function(P) mapply(function(p, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = 1:NROW(p), destination = d[["nms"]]), crs = r_crs), P, destinations, SIMPLIFY = FALSE,
+                          USE.NAMES = FALSE))
+                      } else {
+                        rm(origins, destinations)
+                        paths <- lapply(paths, function(P) lapply(P, function(p) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = 1:NROW(p), destination = 1:NROW(p)), crs = r_crs)))
+                      }
+                    } else {
+                      if(origin_nms_specified && destination_nms_specified) {
+                        paths <- lapply(paths, function(P) mapply(function(p, o, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = rep.int(o, rep.int(NROW(d), NROW(o))), destination = rep.int(d, NROW(o))), crs = r_crs), P, origins,
+                          destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                      } else if(origin_nms_specified) {
+                        destinations <- lengths(destinations)
+                        paths <- lapply(paths, function(P) mapply(function(p, o, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = rep.int(o, rep.int(d, NROW(o))), destination = rep.int(1:d, NROW(o))), crs = r_crs), P, origins,
+                          destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                      } else if(destination_nms_specified) {
+                        origins <- lengths(origins)
+                        paths <- lapply(paths, function(P) mapply(function(p, o, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = rep.int(1:o, rep.int(NROW(d), o)), destination = rep.int(d, o)), crs = r_crs), P, origins,
+                          destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                      } else {
+                        origins <- lengths(origins)
+                        destinations <- lengths(destinations)
+                        paths <- lapply(paths, function(P) mapply(function(p, o, d) terra::vect(as.matrix(p), type = "line",
+                          atts = data.frame(origin = rep.int(1:o, rep.int(d, o)), destination = rep.int(1:d, o)), crs = r_crs), P, origins, destinations,
+                          SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                      }
+                    }
+                  } else {
+                    # The function demands pairwise to be TRUE in the origin_list = TRUE, dest_list = FALSE setting
+                    if(origin_nms_specified && destination_nms_specified) {
+                      destinations[, cls := NULL]
+                      paths <- lapply(paths, function(P) mapply(function(p, o) terra::vect(as.matrix(p), type = "line",
+                        atts = data.frame(origin = o[["nms"]], destination = destinations), crs = r_crs), P, origins, SIMPLIFY = FALSE,
+                        USE.NAMES = FALSE))
+                    } else if(origin_nms_specified) {
+                      rm(destinations)
+                      paths <- lapply(paths, function(P) mapply(function(p, o) terra::vect(as.matrix(p), type = "line",
+                        atts = data.frame(origin = o[["nms"]], destination = 1:NROW(p)), crs = r_crs), P, origins, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                    } else if(destination_nms_specified) {
+                      rm(origins)
+                      destinations <- destinations[["nms"]]
+                      paths <- lapply(paths, function(P) lapply(P, function(p) terra::vect(as.matrix(p), type = "line",
+                        atts = data.frame(origin = 1:NROW(p), destination = destinations), crs = r_crs)))
+                    } else {
+                      rm(origins)
+                      destinations <- length(destinations)
+                      paths <- lapply(paths, function(P) lapply(P, function(p) terra::vect(as.matrix(p), type = "line",
+                        atts = data.frame(origin = 1:destinations, destination = 1:destinations), crs = r_crs)))
+                    }
+                  }
+                } else {
+                  if(origin_nms_specified) {
+                    paths <- lapply(paths, function(P) mapply(function(p, o) terra::vect(as.matrix(p), type = "line",
+                      atts = stats::setNames(as.data.frame(t(utils::combn(o[["nms"]], 2L))), c("origin", "destination")), crs = r_crs), P, origins,
+                      SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                  } else {
+                    origins <- lengths(origins)
+                    paths <- lapply(paths, function(P) mapply(function(p, o) terra::vect(as.matrix(p), type = "line",
+                      atts = stats::setNames(as.data.frame(t(utils::combn(1:o, 2L))), c("origin", "destination")), crs = r_crs), P, origins,
+                      SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                  }
+                }
+              } else {
+                # The function demands pairwise to be TRUE in the origin_list = FALSE, dest_list = TRUE setting
+                if(origin_nms_specified && destination_nms_specified) {
+                  origins[, cls := NULL]
+                  paths <- lapply(paths, function(P) mapply(function(p, d) terra::vect(as.matrix(p), type = "line",
+                    atts = data.frame(origin = origins, destination = d[["nms"]]), crs = r_crs), P, destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                } else if(origin_nms_specified) {
+                  origins[, cls := NULL]
+                  paths <- lapply(paths, function(P) lapply(P, function(p) terra::vect(as.matrix(p), type = "line", atts = data.frame(origin = origins,
+                    destination = 1:NROW(p)), crs = r_crs)))
+                } else if(destination_nms_specified) {
+                  origins <- length(origins)
+                  paths <- lapply(paths, function(P) mapply(function(p, d) terra::vect(as.matrix(p), type = "line", atts = data.frame(origin = 1:origins,
+                    destination = d[["nms"]]), crs = r_crs), P, destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE))
+                } else {
+                  rm(destinations)
+                  origins <- length(origins)
+                  paths <- lapply(paths, function(P) lapply(P, function(p) terra::vect(as.matrix(p), type = "line", atts = data.frame(origin = 1:origins,
+                    destination = 1:origins), crs = r_crs)))
+                }
+              }
+            } else {
+              if(dest_specified) {
+                if(pairwise) {
+                  if(origin_nms_specified && destination_nms_specified) {
+                    origins[, c("cls", "destination") := list(NULL, destinations[["nms"]])]
+                    rm(destinations)
+                    data.table::setnames(origins, "cls", "origin")
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  } else if(origin_nms_specified) {
+                    rm(destinations)
+                    origins[, c("cls", "destination") := list(NULL, 1:.N)]
+                    data.table::setnames(origins, "nms", "origin")
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  } else if(destination_nms_specified) {
+                    rm(origins)
+                    destinations[, c("cls", "origin") := c(NULL, 1:.N)]
+                    data.table::setnames(origins, "nms", "destination")
+                    data.table::setcolorder(destinations, c("origin", "destination"))
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = destinations, crs = r_crs))
+                  } else {
+                    rm(destinations)
+                    origins <- 1:NROW(origins)
+                    origins <- data.frame(origin = origins, destination = origins)
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  }
+                } else {
+                  if(origin_nms_specified && destination_nms_specified) {
+                    origins <- data.frame(origin = rep.int(origins[["nms"]], rep.int(NROW(destinations), NROW(origins))),
+                      destination = rep.int(destinations[["nms"]], NROW(origins)))
+                    rm(destinations)
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  } else if(origin_nms_specified) {
+                    destinations <- length(destinations)
+                    origins <- data.frame(origin = rep.int(origins[["nms"]], rep.int(destinations, NROW(origins))), destination = rep.int(1:destinations,
+                      NROW(origins)))
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  } else if(destination_nms_specified) {
+                    origins <- length(origins)
+                    destinations <- data.frame(origin = rep.int(1:origins, rep.int(NROW(destinations), origins)), destination = rep.int(destinations[["nms"]],
+                      origins))
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = destinations, crs = r_crs))
+                  } else {
+                    origins <- length(origins)
+                    destinations <- length(destinations)
+                    origins <- data.frame(origin = rep.int(1:origins, rep.int(destinations, origins)), destination = rep.int(1:destinations, origins))
+                    paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                  }
+                }
+              } else {
+                if(origin_nms_specified) {
+                  origins <- stats::setNames(as.data.frame(t(utils::combn(origins[["nms"]], 2L))), c("origin", "destination"))
+                  paths <- lapply(paths, function(P) terra::vect(as.matrix(P), type = "line", atts = origins, crs = r_crs))
+                } else {
+                  origins <- stats::setNames(as.data.frame(t(utils::combn(1:length(origins), 2L))), c("origin", "destination"))
+                  paths <- lapply(paths, function(P) terra::vect(as.matrix(p), type = "line", atts = origins, crs = r_crs))
+                }
+              }
+            }
+          }
+        # Serial or not parallel at the update_rst level
+        } else {
+          if(update_rst_list) {
+            paths <- lapply(0:length(update_rst), function(V) {
+              if(V == 0L) {
+                v <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified,
+                  origin_list, dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
+              } else {
+                v <- compute_spaths1(igraph::delete_vertices(rst, update_rst[[V]]), crd[-update_rst[[V]],], origins, destinations, dest_specified,
+                  origin_nms_specified, destination_nms_specified, origin_list, dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
+              }
+              return(v)
+            })
+          } else {
+            paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified,
+              origin_list, dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl)
+            rst <- igraph::delete_vertices(rst, update_rst)
+            crd <- crd[-update_rst,]
+            paths <- rbind(paths, compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified,
+              origin_list, dest_list, r_crs, output_lines, pairwise, ncoresg1, ncores, par_lvl, cl))
+          }
+        }
+      }
+    # update_rst does not mask any non-NA pixels
+    } else {
+      warning("The update_rst geometries do not mask any non-NA pixels. Thus, the results are the same as those from the unmodified rst.")
+      if(update_rst_list) {
+        update_rst <- length(update_rst) + 1L
+      } else {
+        update_rst <- 2L
+      }
+      if(!ncoresg1 || (par_lvl == "update_rst" && copy && rst_par_lvl == "none")) {
+        paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified, origin_list,
+          dest_list, r_crs, output_lines, pairwise, FALSE)
+      } else {
+        if(par_lvl == "update_rst" && copy) par_lvl <- rst_par_lvl
+        paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified, origin_list,
+          dest_list, r_crs, output_lines, pairwise, TRUE, ncores, par_lvl, cl)
+      }
+      paths <- replicate(update_rst, paths, FALSE)
+    }
+  # update_rst not specified
   } else {
-    paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list, dest_list, r_crs,
+    paths <- compute_spaths1(rst, crd, origins, destinations, dest_specified, origin_nms_specified, destination_nms_specified, origin_list, dest_list, r_crs,
       output == "lines", pairwise, ncoresg1, ncores, par_lvl, cl)
   }
   if(ncoresg1) parallel::stopCluster(cl)
   
   return(paths)
-}
-
-# Convert origins and destinations
-convert_points <- function(v, rst, r_crs, nms, nms_null, o = TRUE) {
-  if(all(class(v) != "SpatVector")) v <- terra::vect(v)
-  if(!terra::is.points(v)) v <- terra::centroids(v)
-  if(terra::crs(v) != r_crs) v <- terra::project(v, r_crs)
-  if(!nms_null) {
-    if(!(nms %chin% names(v))) {
-      stop(ifelse(o, "origin", "destination"), "_names must either be NULL or the name of a column in ", ifelse(o, "origins", "destinations"))
-    }
-    nms <- unlist(terra::values(v[, nms]), use.names = FALSE)
-  }
-  v <- terra::extract(rst, v, cells = TRUE, ID = FALSE)
-  if(any(!stats::complete.cases(v[, 1:terra::nlyr(rst)]))) {
-    v <- which(!stats::complete.cases(v[, 1:terra::nlyr(rst)]))
-    v_length <- length(v)
-    if(v_length > 1L) {
-      if(v_length > 2L) {
-        v <- paste0(paste0(v[1:(v_length - 1L)], collapse = ", "), ", and ", v[v_length])
-      } else {
-        v <- paste0(v, collapse = " and ")
-      }
-      v <- paste0(ifelse(o, "Origins", "Destinations"), " ", v, " located on NA cells")
-    } else {
-      v <- paste0(ifelse(o, "Origin", "Destination"), " ", v, " located on NA cell")
-    }
-    stop(v)
-  }
-  if(nms_null) {
-    v <- v$cell
-  } else {
-    v <- data.table::data.table(cls = v$cell, nms = nms)
-  }
-  return(v)
-}
-
-# Update points' cell numbers
-update_points <- function(v, v_list, crd, nms_null) {
-  if(v_list) {
-    if(nms_null) {
-      v <- lapply(v, function(V) {
-        return(crd[.(V), "c_n_c", on = "c_n"][["c_n_c"]])
-      })
-    } else {
-      v <- lapply(v, function(V) {
-        return(data.table::setnames(crd[V, c("c_n_c", "nms"), on = "c_n==cls"], "c_n_c", "cls"))
-      })
-    }
-  } else {
-    if(nms_null) {
-      v <- crd[.(v), "c_n_c", on = "c_n"][["c_n_c"]]
-    } else {
-      v <- data.table::setnames(crd[v, c("c_n_c", "nms"), on = "c_n==cls"], "c_n_c", "cls")
-    }
-  }
-  return(v)
-}
-
-# Compute distances between neighboring cells
-# Capitalized object names differing from the ones in the spaths_earth function indicate that these objects might differ from the spaths_earth
-# counterparts, e.g. by being subsets
-compute_dists <- function(rst, CRD, dist_comp_terra, round_dist, contiguity, yr, xr, nr, ym, lonlat, ncoresg1, ncores, cl) {
-  if(dist_comp_terra) {
-    if(ncoresg1) {
-      d <- function(RST) {
-        return(terra::distance(as.matrix(CRD[RST[["from"]],]), as.matrix(CRD[RST[["to"]],]), lonlat = lonlat, pairwise = TRUE))
-      }
-      d <- parallel::parLapply(cl, split(rst, cut(1:NROW(rst), ncores, labels = FALSE)), d)
-    } else {
-      d <- terra::distance(as.matrix(CRD[rst[["from"]],]), as.matrix(CRD[rst[["to"]],]), lonlat = lonlat, pairwise = TRUE)
-    }
-  } else {
-    if(round_dist) {
-      if(contiguity == "queen") {
-        d <- dists_queen_i(CRD[rst[["from"]], "y"][["y"]], CRD[rst[["from"]], "x"][["x"]], CRD[rst[["to"]], "y"][["y"]],
-          CRD[rst[["to"]], "x"][["x"]], yr, xr, nr, ym, lonlat, ncores)
-      } else {
-        d <- dists_rook_i(CRD[rst[["from"]], "y"][["y"]], CRD[rst[["from"]], "x"][["x"]], CRD[rst[["to"]], "y"][["y"]],
-          CRD[rst[["to"]], "x"][["x"]], yr, xr, nr, ym, lonlat, ncores)
-      }
-    } else {
-      if(contiguity == "queen") {
-        d <- dists_queen_d(CRD[rst[["from"]], "y"][["y"]], CRD[rst[["from"]], "x"][["x"]], CRD[rst[["to"]], "y"][["y"]],
-          CRD[rst[["to"]], "x"][["x"]], yr, xr, nr, ym, lonlat, ncores)
-      } else {
-        d <- dists_rook_d(CRD[rst[["from"]], "y"][["y"]], CRD[rst[["from"]], "x"][["x"]], CRD[rst[["to"]], "y"][["y"]],
-          CRD[rst[["to"]], "x"][["x"]], yr, xr, nr, ym, lonlat, ncores)
-      }
-    }
-  } 
-  return(d)
-}
-
-# Function calling compute_spaths2
-compute_spaths1 <- function(rst, crd, origins, destinations, dest_specified, origin_nms_null, destination_nms_null, origin_list, dest_list, r_crs,
-  output_lines, pairwise, NCORESG1, ncores = NULL, par_lvl = NULL, cl = NULL) {
-  if(origin_list) {
-    if(dest_specified) {
-      if(dest_list) {
-        if(NCORESG1 && par_lvl == "points_lists") {
-          paths <- function(O) {
-            return(compute_spaths2(origins[[O]], rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, FALSE, NULL, NULL, TRUE,
-              destinations[[O]], destination_nms_null))
-          }
-          paths <- parallel::parLapplyLB(cl, 1:length(origins), paths)
-          if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs))
-        } else {
-          paths <- mapply(compute_spaths2, ORIGINS = origins, DESTINATIONS = destinations, MoreArgs = list(rst = rst, crd = crd,
-            dest_specified = dest_specified, origin_nms_null = origin_nms_null, r_crs = r_crs, output_lines = output_lines, pairwise = pairwise,
-            NCORESG1 = NCORESG1, ncores = ncores, cl = cl, nvect = is.null(par_lvl), destination_nms_null = destination_nms_null), SIMPLIFY = FALSE,
-            USE.NAMES = FALSE)
-        }
-      } else {
-        if(NCORESG1 && par_lvl == "points_lists") {
-          paths <- function(O) {
-            return(compute_spaths2(O, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, FALSE, NULL, NULL, TRUE, destinations,
-              destination_nms_null))
-          }
-          paths <- parallel::parLapplyLB(cl, origins, paths)
-          if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]], crs = r_crs))
-        } else {
-          paths <- lapply(origins, compute_spaths2, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, NCORESG1, ncores, cl,
-            is.null(par_lvl), destinations, destination_nms_null)
-        }
-      }
-    } else {
-      paths <- lapply(origins, compute_spaths2, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, NCORESG1, ncores, cl,
-        is.null(par_lvl))
-    }
-  } else {
-    if(dest_specified) {
-      if(dest_list) {
-        if(NCORESG1 && par_lvl == "points_lists") {
-          paths <- function(D) {
-            return(compute_spaths2(origins, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, FALSE, NULL, NULL, TRUE,
-              destinations[[D]], destination_nms_null))
-          }
-          paths <- parallel::parLapplyLB(cl, 1:length(destinations), paths)
-          if(output_lines) paths <- lapply(paths, function(D) terra::vect(D[[1L]], type = "line", atts = D[[2L]], crs = r_crs))
-        } else {
-          paths <- lapply(destinations, function(d) compute_spaths2(origins, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise,
-            NCORESG1, ncores, cl, is.null(par_lvl), d, destination_nms_null))
-        }
-      } else {
-        paths <- compute_spaths2(origins, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, NCORESG1, ncores, cl, is.null(par_lvl),
-          destinations, destination_nms_null)
-      }
-    } else {
-      paths <- compute_spaths2(origins, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, NCORESG1, ncores, cl, is.null(par_lvl))
-    }
-  }
-  return(paths)
-}
-
-# Compute shortest paths
-compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_null, r_crs, output_lines, pairwise, NCORESG1, ncores, cl, nvect,
-  DESTINATIONS = NULL, destination_nms_null = TRUE) {
-  os_length <- NROW(ORIGINS)
-  if(origin_nms_null) {
-    on <- 1:os_length
-  } else {
-    on <- ORIGINS[["nms"]]
-    ORIGINS <- ORIGINS[["cls"]]
-  }
-  # Shortest paths when destinations are specified
-  if(dest_specified) {
-    ds_length <- NROW(DESTINATIONS)
-    if(destination_nms_null) {
-      dn <- 1:ds_length
-    } else {
-      dn <- DESTINATIONS[["nms"]]
-      DESTINATIONS <- DESTINATIONS[["cls"]]
-    }
-    # Lines output
-    if(output_lines) {
-      if(pairwise) {
-        if(NCORESG1) {
-          p <- function(O) {
-            return(data.table::rbindlist(lapply(O, function(o) data.table::data.table(cls = igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS[o],
-              output = "vpath", algorithm = "dijkstra")$vpath[[1L]], g = o))))
-          }
-          p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)),
-            p))[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = on, destination = dn), crs = r_crs)
-        } else if(nvect) {
-          p <- list(as.matrix(data.table::rbindlist(lapply(1:os_length, function(O) {
-            return(data.table::rbindlist(lapply(igraph::shortest_paths(rst, ORIGINS[O], DESTINATIONS[O], output = "vpath", algorithm = "dijkstra")$vpath,
-              function(D) crd[D,][, g := O])))
-          }))[, c("g", "x", "y")]), data.frame(origin = on, destination = dn))
-        } else {
-          p <- terra::vect(as.matrix(data.table::rbindlist(lapply(1:os_length, function(O) {
-            return(data.table::rbindlist(lapply(igraph::shortest_paths(rst, ORIGINS[O], DESTINATIONS[O], output = "vpath", algorithm = "dijkstra")$vpath,
-              function(D) crd[D,][, g := O])))
-          }))[, c("g", "x", "y")]), type = "line", atts = data.frame(origin = on, destination = dn), crs = r_crs)
-        }
-      } else {
-        if(NCORESG1) {
-          p <- function(O) {
-            return(data.table::rbindlist(lapply(O, function(o) {
-              s <- igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS, output = "vpath", algorithm = "dijkstra")$vpath
-              o1 <- (o - 1L) * ds_length
-              return(data.table::rbindlist(lapply(1:ds_length, function(D) data.table::data.table(cls = s[[D]], g = o1 + D))))
-            })))
-          }
-          p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)),
-            p))[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = rep.int(on, rep.int(ds_length, os_length)),
-            destination = rep.int(dn, os_length)), crs = r_crs)
-        } else if(nvect) {
-          p <- list(as.matrix(data.table::rbindlist(lapply(1:os_length, function(O) {
-            s <- igraph::shortest_paths(rst, ORIGINS[O], DESTINATIONS, output = "vpath", algorithm = "dijkstra")$vpath
-            o1 <- (O - 1L) * ds_length
-            return(data.table::rbindlist(lapply(1:ds_length, function(D) crd[s[[D]],][, g := o1 + D])))
-          }))[, c("g", "x", "y")]), data.frame(origin = rep.int(on, rep.int(ds_length, os_length)), destination = rep.int(dn, os_length)))
-        } else {
-          p <- terra::vect(as.matrix(data.table::rbindlist(lapply(1:os_length, function(O) {
-            s <- igraph::shortest_paths(rst, ORIGINS[O], DESTINATIONS, output = "vpath", algorithm = "dijkstra")$vpath
-            o1 <- (O - 1L) * ds_length
-            return(data.table::rbindlist(lapply(1:ds_length, function(D) crd[s[[D]],][, g := o1 + D])))
-          }))[, c("g", "x", "y")]), type = "line", atts = data.frame(origin = rep.int(on, rep.int(ds_length, os_length)), destination = rep.int(dn,
-            os_length)), crs = r_crs)
-        }
-      }
-    # Distances output
-    } else {
-      if(pairwise) {
-        if(NCORESG1) {
-          p <- function(O) {
-            return(vapply(O, function(o) igraph::distances(rst, ORIGINS[o], DESTINATIONS[o], mode = "out", algorithm = "dijkstra"), numeric(1L),
-              USE.NAMES = FALSE))
-          }
-          p <- data.table::data.table(origin = on, destination = dn, distance = do.call(c, parallel::parLapply(cl, split(1:os_length, cut(1:os_length,
-            ncores, labels = FALSE)), p)))
-        } else {
-          p <- data.table::data.table(origin = on, destination = dn, distance = vapply(1:os_length, function(O) igraph::distances(rst, ORIGINS[O],
-            DESTINATIONS[O], mode = "out", algorithm = "dijkstra"), numeric(1L), USE.NAMES = FALSE))
-        }
-      } else {
-        if(NCORESG1) {
-          if(os_length >= ncores || os_length > ds_length) {
-            p <- function(O) {
-              return(data.table::as.data.table(igraph::distances(rst, O, DESTINATIONS, mode = "out", algorithm = "dijkstra"), na.rm = FALSE))
-            }
-            p <- data.table::rbindlist(parallel::parLapply(cl, split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p))
-          } else {
-            p <- function(D) {
-              return(igraph::distances(rst, ORIGINS, D, mode = "out", algorithm = "dijkstra"))
-            }
-            p <- data.table::as.data.table(do.call(cbind, parallel::parLapply(cl, split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores, labels = FALSE)),
-              p)), na.rm = FALSE)
-          }
-        } else {
-          p <- data.table::as.data.table(igraph::distances(rst, ORIGINS, DESTINATIONS, mode = "out", algorithm = "dijkstra"), na.rm = FALSE)
-        }
-        if(is.numeric(dn)) {
-          data.table::setnames(p, as.character(dn))
-          p[, origin := on]
-          if(is.integer(dn)) {
-            p <- data.table::melt(p, "origin", variable.name = "destination", value.name = "distance",
-              variable.factor = FALSE)[, destination := as.integer(destination)]
-          } else {
-            p <- data.table::melt(p, "origin", variable.name = "destination", value.name = "distance",
-              variable.factor = FALSE)[, destination := as.numeric(destination)]
-          }
-        } else {
-          data.table::setnames(p, dn)
-          p[, origin := on]
-          p <- data.table::melt(p, "origin", variable.name = "destination", value.name = "distance", variable.factor = FALSE)
-        }
-      }
-    }
-  # Shortest paths when destinations are not specified
-  } else {
-    # Lines output
-    if(output_lines) {
-      o1 <- os_length - 1L
-      if(NCORESG1) {
-        p <- function(O) {
-          return(data.table::rbindlist(lapply(split(O, by = "V1"), function(o) {
-            s <- o[1L, "V1"][["V1"]]
-            npO <- os_length - s
-            i <- sum(o1:npO) - npO
-            s <- igraph::shortest_paths(rst, ORIGINS[s], ORIGINS[o[["V2"]]], output = "vpath", algorithm = "dijkstra")$vpath
-            return(data.table::rbindlist(lapply(1:NROW(o), function(D) data.table::data.table(cls = s[[D]], g = i + o[D, "V2"][["V2"]]))))
-          })))
-        }
-        p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(data.table::as.data.table(t(utils::combn(1:os_length, 2L))),
-         cut(1:(os_length * o1 / 2L), ncores, labels = FALSE)), p))[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
-           atts = stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")), crs = r_crs)
-      } else if(nvect) {
-        p <- list(as.matrix(data.table::rbindlist(lapply(1:o1, function(O) {
-          npO <- os_length - O
-          i <- sum(o1:npO) - npO
-          s <- igraph::shortest_paths(rst, ORIGINS[O], ORIGINS[(O + 1L):os_length], output = "vpath", algorithm = "dijkstra")$vpath
-          return(data.table::rbindlist(lapply(1:npO, function(D) crd[s[[D]],][, g := i + D])))
-        }))[, c("g", "x", "y")]), stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")))
-      } else {
-        p <- terra::vect(as.matrix(data.table::rbindlist(lapply(1:o1, function(O) {
-          npO <- os_length - O
-          i <- sum(o1:npO) - npO
-          s <- igraph::shortest_paths(rst, ORIGINS[O], ORIGINS[(O + 1L):os_length], output = "vpath", algorithm = "dijkstra")$vpath
-          return(data.table::rbindlist(lapply(1:npO, function(D) crd[s[[D]],][, g := i + D])))
-        }))[, c("g", "x", "y")]), type = "line", atts = stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")), crs = r_crs)
-      }
-    # Distances output
-    } else {
-      on_n <- is.numeric(on)
-      if(on_n) on_i <- is.integer(on)
-      if(NCORESG1) {
-        p <- function(O) {
-          return(data.table::rbindlist(lapply(split(O, by = "V1"), function(o) {
-            g <- o[1L, "V1"][["V1"]]
-            s <- data.table::as.data.table(igraph::distances(rst, ORIGINS[g], ORIGINS[o[["V2"]]], mode = "out", algorithm = "dijkstra"), na.rm = FALSE)
-            if(on_n) {
-              data.table::setnames(s, as.character(on[o[["V2"]]]))
-              s[, origin := on[g]]
-              if(on_i) {
-                s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance",
-                  variable.factor = FALSE)[, destination := as.integer(destination)]
-              } else {
-                s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance",
-                  variable.factor = FALSE)[, destination := as.numeric(destination)]
-              }
-            } else {
-              data.table::setnames(s, on[o[["V2"]]])
-              s[, origin := on[g]]
-              s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance", variable.factor = FALSE)
-            }
-            return(s)
-          })))
-        }
-        p <- data.table::rbindlist(parallel::parLapply(cl, split(data.table::as.data.table(t(utils::combn(1:os_length, 2L))),
-          cut(1:(os_length * (os_length - 1L) / 2L), ncores, labels = FALSE)), p))
-      } else {
-        p <- data.table::rbindlist(lapply(1:(os_length - 1L), function(O) {
-          s <- data.table::as.data.table(igraph::distances(rst, ORIGINS[O], ORIGINS[(O + 1L):os_length], mode = "out", algorithm = "dijkstra"),
-            na.rm = FALSE)
-          if(on_n) {
-            data.table::setnames(s, as.character(on[(O + 1L):os_length]))
-            s[, origin := on[O]]
-            if(on_i) {
-              s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance",
-                variable.factor = FALSE)[, destination := as.integer(destination)]
-            } else {
-              s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance",
-                variable.factor = FALSE)[, destination := as.numeric(destination)]
-            }
-          } else {
-            data.table::setnames(s, on[(O + 1L):os_length])
-            s[, origin := on[O]]
-            s <- data.table::melt(s, "origin", variable.name = "destination", value.name = "distance", variable.factor = FALSE)
-          }
-          return(s)
-        }))
-      }
-    }
-  }
-  return(p)
 }

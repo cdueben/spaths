@@ -19,9 +19,11 @@ spaths_earth(
   tr_directed = TRUE,
   update_rst = NULL,
   touches = TRUE,
+  copy = TRUE,
   round_dist = FALSE,
   ncores = NULL,
   par_lvl = c("points", "points_lists", "update_rst"),
+  rst_par_lvl = c("points", "points_lists", "none"),
   cluster = NULL,
   paths_ncores = NULL,
   verbose = FALSE
@@ -99,16 +101,34 @@ of transition cells. Neither does \code{update_rst} alter cell values from any o
 \item{touches}{Logical specifying the \code{touches} argument of \code{terra::extract} used when \code{update_rst} is not \code{NULL}. It defaults to 
 \code{TRUE}. If \code{FALSE}, the function only removes cells on the line render path or with the center point inside a polygon.}
 
+\item{copy}{Logical specifying whether to copy paths that are unaffected by \code{update_rst} geometries (\code{TRUE}) rather than re-estimating all 
+paths on the grids updated by \code{update_rst} (\code{FALSE}). It defaults to \code{TRUE} and only has an effect when \code{update_rst} is not 
+\code{NULL}. If \code{TRUE}, the function first computes paths on the unmodified \code{rst} and then checks which paths' cells intersect with the 
+geometries in \code{update_rst}. If you know that all paths are affected by \code{update_rst}, setting \code{copy} to \code{FALSE} can be the more 
+efficient choice. This especially holds in two scenarios: (i) if you use multiple cores and \code{par_lvl = "update_rst"}, \code{copy = FALSE} directly 
+parallelizes the function over the different grids, incl. the unmodified \code{rst}, rather than waiting for the paths on the initial grid to be 
+computed before parallelizing over the remaining grids; (ii) if \code{output = "distances"}, the function only computes distances when 
+\code{copy = FALSE}, but engages in the more time consuming task of returning lines for the first grid when \code{copy = TRUE}. Thus, the function 
+tends to be faster with \code{copy = TRUE} than with \code{copy = FALSE}, unless quasi all paths are affected by \code{update_rst}, with both 
+\code{output = "lines"} and \code{output = "distances"}.}
+
 \item{round_dist}{Logical specifying whether to round edge weights, i.e. the transition cost or distance between neighboring cells, to integers. It 
 defaults to \code{FALSE}. Setting it to \code{TRUE} reduces the function's RAM requirements slightly.}
 
 \item{ncores}{An integer specifying the number of CPU cores to use. It defaults to the number of cores installed on the machine. A value of 1 
 accordingly induces a single-threaded process.}
 
-\item{par_lvl}{\code{"points"} (default), \code{"points_lists"}, or \code{"update_rst"}, indicating the level at which to parallelize when 
-\code{ncores > 1}. \code{"points"} parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list 
+\item{par_lvl}{\code{"points"} (default), \code{"points_lists"}, or \code{"update_rst"}, indicating the level at which to parallelize when using 
+multiple cores. \code{"points"} parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list 
 elements of \code{origins} (and \code{destinations}), if these arguments are lists. \code{"update_rst"} parallelizes over the list of graphs specified 
 by \code{rst} and \code{update_rst}.}
+
+\item{rst_par_lvl}{\code{"points"} (default), \code{"points_lists"}, or \code{"none"}, indicating the level at which to parallelize the paths 
+computations on the unmodified \code{rst} when using multiple cores, \code{update_rst} is not \code{NULL}, \code{par_lvl = "update_rst"}, and 
+\code{copy = TRUE}. Because the function requires the paths from the unmodified \code{rst} before looping over the updated grids when 
+\code{copy = TRUE}, the parallel structure requested by \code{par_lvl = "update_rst"} only commences after those initial paths have been identified. 
+\code{rst_par_lvl} defines the parallel level at which those initial paths are derived. \code{"points"} (default) and \code{"points_list"} are 
+equivalent to their counterparts in \code{par_lvl}, \code{"none"} induces a serial, i.e. non-parallel, execution.}
 
 \item{cluster}{\code{"PSOCK"} or \code{"FORK"}, indicating the type of \code{parallel} cluster that the function employs when \code{ncores > 1} or 
 \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. Windows machines must use \code{"PSOCK"}, 
@@ -148,7 +168,8 @@ The \href{../doc/spaths_introduction.html}{vignette} provides further details on
 \dontrun{
 # Generate example data
 set.seed(20146)
-rst <- terra::rast(crs = "epsg:4326", resolution = 1L, vals = sample(c(1L, NA), 64800L, TRUE, c(0.9, 0.1)))
+rst <- terra::rast(crs = "epsg:4326", resolution = 1L, vals = sample(c(1L, NA), 64800L, TRUE,
+  c(0.9, 0.1)))
 origins <- rnd_locations(5L, output_type = "terra")
 destinations <- rnd_locations(5L, output_type = "terra")
 

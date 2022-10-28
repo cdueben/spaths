@@ -1,7 +1,7 @@
 ---
 title: "Introduction to spaths"
 author: "Christian Düben"
-date: "August 31, 2022"
+date: "Updated: October 28, 2022"
 output: 
   rmarkdown::html_vignette:
     number_sections: true
@@ -121,7 +121,7 @@ Rcpp::sourceCpp(code = '
 ')
 ```
 
-<p style="text-align: justify">`spaths` also uses OpenMP in its non-`terra` distance computations. Because OpenMP is commonly not available on MacOS by default, the edge weight computations - like functions in a number of other R packages - tends to be faster on Windows and Linux than on MacOS.</p>
+<p style="text-align: justify">`spaths` also uses OpenMP in its non-`terra` distance computations. Because OpenMP is commonly not available on MacOS by default, the edge weight computations - like functions in a number of other R packages - tend to be faster on Windows and Linux than on MacOS.</p>
 <br>
 
 # Distances
@@ -167,6 +167,8 @@ _Result_: List of SpatVectors of $N_{origins,i}$ rows, if `pairwise` is `TRUE`. 
 _Result_: List of SpatVectors of $N_{origins,i} N_{destinations,i}$ rows, if `pairwise` is `FALSE`. It links all rows of the first `origins` list element to all rows of the first `destinations` list element, all rows of the second `origins` list element to all rows of the second `destinations` list element etc. If `pairwise` is TRUE, the function throws an error, as this links each origin to one destination, like in approach three with `pairwise` set to `TRUE`. Providing `origins` and `destinations` as a lists is not necessary in that case.</p>
 
 <p style="text-align: justify">With `update_rst`, you can update the graph without reconstructing it from scratch. In particular, it alters the set of cells that the algorithm is allowed to pass through, as indicated by `NA` values in `rst`. `spaths_earth` first estimates shortest paths based on `rst`, then removes any cells or vertices from the graph intersecting with geometries in the `update_rst` argument and estimates all paths again based on the updated graph. This is faster than setting further `rst` cells to `NA` and reconstructing the graph, as it just removes vertices from the already assembled graph. `update_rst` is currently only implemented to remove pixels, not to add any, not to update their values.</p>
+
+<p style="text-align: justify">By default, `spaths_earth` checks which paths are affected by the `update_rst` geometries and only re-computes those connections. The other lines are copied without running Dijkstra's algorithm again. This can be much faster than re-estimating all paths, unless (quasi) all connections are affected by `update_rst`. If you know that (almost) all lines change, deactivate the copying functionality and the respective checks by setting `copy` to `FALSE`.</p>
 
 <p style="text-align: justify">`update_rst` accepts a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object, or a list of them. When using a single object, the function returns a list of length two. The first list element contains shortest paths based on `rst`, not taking `update_rst` into account. The second list element entails shortest paths based on `rst` updated by `update_rst`. When passing a list to `update_rst`, the function returns a list with one more element than `update_rst` has. The first element's paths refer to the unmodified `rst`, the second to paths given `rst` updated by the first element of `update_rst`, the third element to `rst` updated by the second element of `update_rst` etc. The updating is always relative to the unmodified `rst`, not an updated version from a prior iteration.</p>
 
