@@ -312,7 +312,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               }
               p <- parallel::parLapply(cl, split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p)
               p <- list(data.table::data.table(origin = rep(on, each = ds_length), origin_c = rep(ORIGINS, each = ds_length), destination = rep.int(dn,
-                os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))), do.call(c, lapply(P, `[[`, 2L)))
+                os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))), do.call(c, lapply(p, `[[`, 2L)))
               p[[2L]] <- data.table::data.table(g = rep.int(1:(os_length * ds_length), lengths(p[[2L]])), cls = do.call(c, p[[2L]]))
             } else {
               p <- function(D) {
@@ -326,7 +326,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               p <- parallel::parLapply(cl, split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores, labels = FALSE)), p)
               s <- seq.int(1L, by = ds_length, length.out = os_length) + rep(0:(ds_length - 1L), each = os_length)
               p <- list(data.table::data.table(origin = rep(on, each = ds_length), origin_c = rep(ORIGINS, each = ds_length), destination = rep.int(dn,
-                os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))[s]), do.call(c, lapply(P, `[[`,
+                os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))[s]), do.call(c, lapply(p, `[[`,
                 2L))[[s]])
               p[[2L]] <- data.table::data.table(g = rep.int(1:(os_length * ds_length), lengths(p[[2L]])), cls = do.call(c, p[[2L]]))
             }
