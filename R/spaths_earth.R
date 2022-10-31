@@ -334,33 +334,15 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
   
   if(upd_rst_specified) rst_upd <- rst[[1L]]
   crd[, c_n_c := 1:.N]
-  if(NROW(crd) > 268435456) {
-    n_crd <- NROW(crd)
-    n_i <- 2
-    while(n_crd / n_i > 268435456) {
-      n_i <- n_i + 1
-    }
-    n_crd <- n_crd / n_i
-    rst <- data.table::rbindlist(lapply(0:(n_i - 1), function(x) {
-      rst_x <- data.table::as.data.table(terra::adjacent(rst, crd[["c_n"]][(ceiling(n_crd * x) + 1):ceiling(n_crd * (x + 1))], contiguity,
-        TRUE)) # Obtain adjacency matrix
-      if(tr_fun_specified && tr_directed) {
-        rst_x <- rst_x[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][, to := NULL] # Subset to non-NA destination cells
-      } else {
-        rst_x <- rst_x[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][from < to,][, to := NULL] # Subset to non-NA destination cells and one edge per pair
-      }
-      return(rst_x)
-    }))
-  } else {
-    rst <- data.table::as.data.table(terra::adjacent(rst, crd[["c_n"]], contiguity, TRUE)) # Obtain adjacency matrix
-    if(tr_fun_specified && tr_directed) {
-      rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][, to := NULL] # Subset to non-NA destination cells
-    } else {
-      rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][from < to,][, to := NULL] # Subset to non-NA destination cells and one edge per pair
-    }
-  }
   origins <- update_points(origins, origin_list, crd, origin_nms_specified)
   if(dest_specified) destinations <- update_points(destinations, dest_list, crd, destination_nms_specified)
+  rst <- data.table::as.data.table(terra::adjacent(rst, crd[["c_n"]], contiguity, TRUE)) # Obtain adjacency matrix
+  if(tr_fun_specified && tr_directed) {
+    rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][, to := NULL] # Subset to non-NA destination cells
+  } else {
+    rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "to==c_n"][from < to,][, to := NULL] # Subset to non-NA destination cells and one edge per pair
+  }
+  
   data.table::setnames(rst, "c_n_c", "to")
   rst <- rst[crd[, c("c_n", "c_n_c")], nomatch = NULL, on = "from==c_n"][, from := NULL]
   data.table::setnames(rst, "c_n_c", "from")
@@ -601,7 +583,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, function(oc, dc, pa) {
                     return(v[igraph::shortest_paths(rst_u, origin_c[O], destination_c[O], output = "vpath",
                       algorithm = "dijkstra")$vpath[[1L]],][, g := p_affected[O]])
-                  }, origin_c, destination_c, P_AFFECTED, USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
+                  }, origin_c, destination_c, p_affected, USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
                 } else {
                   v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(lapply(1:length(origin_c), function(O) {
                     return(v[igraph::shortest_paths(rst_u, origin_c[O], destination_c[O], output = "vpath",
