@@ -327,7 +327,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               s <- seq.int(1L, by = ds_length, length.out = os_length) + rep(0:(ds_length - 1L), each = os_length)
               p <- list(data.table::data.table(origin = rep(on, each = ds_length), origin_c = rep(ORIGINS, each = ds_length), destination = rep.int(dn,
                 os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))[s]), do.call(c, lapply(p, `[[`,
-                2L))[[s]])
+                2L))[s])
               p[[2L]] <- data.table::data.table(g = rep.int(1:(os_length * ds_length), lengths(p[[2L]])), cls = do.call(c, p[[2L]]))
             }
           } else {
