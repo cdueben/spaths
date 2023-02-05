@@ -14,8 +14,8 @@
 #' @param origins A single matrix or data frame, or a list of them. The first column states the x and the second column the y coordinates, irrespective 
 #' of what the column names are.
 #' @param destinations A single matrix or data frame, a list of them. The first column states the x and the second column the y coordinates, irrespective 
-#' of what the column names are. If not specified, the function to computes shortest paths between the \code{origins} points. Passing a list of data 
-#' frames or matrices is a way not to relate all origins to all destinations. Details are outlined below.
+#' of what the column names are. It defaults to \code{NULL}, resulting in the function to compute shortest paths between the \code{origins} points. 
+#' Passing a list of data frames or matrices is a way not to relate all origins to all destinations. Details are outlined below.
 #' @param lonlat Logical specifying whether the data is in lonlat (\code{TRUE}), i.e. spherical, or in planar (\code{FALSE}) format. It defaults to 
 #' \code{TRUE}.
 #' @param radius The radius of the sphere, if \code{lonlat} is \code{TRUE}. It is ignored, if \code{lonlat} is \code{FALSE} of if the function passed to 
@@ -59,14 +59,30 @@
 #' @param par_lvl \code{"points"} (default) or \code{"points_lists"}, indicating the level at which to parallelize when \code{ncores > 1}. \code{"points"} 
 #' parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list elements of \code{origins} (and 
 #' \code{destinations}), if these arguments are lists.
-#' @param cluster \code{"PSOCK"} or \code{"FORK"}, indicating the type of \code{parallel} cluster that the function employs when \code{ncores > 1} or 
-#' \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. Windows machines must use \code{"PSOCK"}, 
-#' while Mac and Linux can employ either of the two options.
+#' @param cluster \code{"PSOCK"}, \code{"FORK"}, or \code{"MPI"}, indicating the type of \code{parallel} cluster that the function employs when 
+#' \code{ncores > 1} or \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. \code{"FORK"} is not 
+#' available on Windows machines. \code{"MPI"} requires the Rmpi package to be installed. There are various ways of parallelizing R with MPI. This 
+#' function utilizes the variant implemented in the \code{snow} package.
 #' @param paths_ncores An integer specifying the number of CPU cores to use in shortest paths computations. It defaults to the value of \code{ncores}. 
 #' Thus, only set it, if you want edge weights and shortest paths be computed with differently many cores. The \code{dist_comp = "spaths"} edge weight
 #' computations employ efficient C++ level parallelization. The shortest paths sections, in contrast, parallelize on the R level. If you use a \code{PSOCK} 
 #' cluster, \code{spaths_earth} copies various objects to the workers before the paths algorithm is applied. This can make the parallel execution slower 
 #' than its serial counterpart. Thus, consider setting \code{paths_ncores = 1}, especially when working with \code{PSOCK} clusters.
+#' @param write_dir Directory to which write output. If \code{NULL} (default), the output is not written to disk but returned by the function. When 
+#' specifying a directory, \code{spaths_general} writes the output to it and returns \code{NULL}. Keeping the results in RAM is commonly faster than 
+#' writing them to disk. Thus, the recommendation is to keep the default unless your machine has insufficient RAM. In cases in which the function would 
+#' return a list, i.e. if \code{origins} or \code{destinations} are lists, \code{spaths_general} writes one file per list element. File names state which 
+#' element the file represents: the number following \code{p} points to the element of \code{origins} or \code{destinations}. Values begin at 1. In 
+#' generating file names of equal length, the function employs leading zeros. So, if the function computes 100 SpatVectors, the file corresponding to the 
+#' first list element is not \code{p1} but \code{p001}. In the basic case, in which the result is a single data.table or SpatVector object, the output 
+#' file is named \code{results}. The directory must not contain any file named as one of the output files - irrespective of file type - if 
+#' \code{output = "lines"}.
+#' @param file_type The output file type when \code{write_dir} is specified. It defaults to \code{"shp"} in case \code{output = "lines"}, but can also 
+#' be set to \code{"kml"}, \code{"json"}, or any other vector format that \code{terra::writeVector} can write. \code{terra::gdal(drivers = TRUE)} lists 
+#' drivers. \code{output = "distances"} defaults to \code{"rds"} as file type, but can alternatively be set to \code{"csv"}.
+#' @param unconnected_error Logical specifying whether the function throws an error when trying to compute the distance between locations unconnected by 
+#' the \code{rst} grid. If \code{TRUE} (default), the function throws and error and aborts. If \code{FALSE}, unconnected places have an \code{Inf} 
+#' distance. If \code{output = "lines"}, attempting to link unconnected places always throws an error.
 #' @param verbose Logical specifying whether the function prints messages on progress. It defaults to \code{FALSE}.
 #' 
 #' @details This function computes shortest paths between points on a sphere or a plane, taking custom transition costs into account. The sphere could be 
@@ -104,7 +120,8 @@
 #' @export
 spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = NULL, lonlat = TRUE, radius = NULL, output = c("lines", "distances"),
   origin_names = NULL, destination_names = NULL, pairwise = FALSE, contiguity = c("queen", "rook"), tr_fun = NULL, v_matrix = FALSE, tr_directed = TRUE,
-  round_dist = FALSE, ncores = NULL, par_lvl = c("points", "points_lists"), cluster = NULL, paths_ncores = NULL, verbose = FALSE) {
+  round_dist = FALSE, ncores = NULL, par_lvl = c("points", "points_lists"), cluster = NULL, paths_ncores = NULL, write_dir = NULL, file_type = NULL,
+  unconnected_error = TRUE, verbose = FALSE) {
   
   if(length(verbose) != 1L || !is.logical(verbose) || is.na(verbose)) stop("verbose must be logical and of length one")
   if(verbose) message("Checking arguments")
@@ -168,6 +185,7 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
   } else {
     dest_list <- NULL
   }
+  p_list <- origin_list || (dest_specified && dest_list)
   
   # Check other arguments
   if(length(pairwise) != 1L || !is.logical(pairwise) || is.na(pairwise)) stop("pairwise must be logical and of length one")
@@ -216,6 +234,7 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     }
   }
   output <- match.arg(output)
+  output_lines <- output == "lines"
   contiguity <- match.arg(contiguity)
   tr_fun_specified <- !is.null(tr_fun)
   if(tr_fun_specified) {
@@ -246,14 +265,55 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     if(is.null(cluster)) {
       if(.Platform$OS.type == "windows") {
         cluster <- "PSOCK"
+        nfork <- TRUE
       } else {
         cluster <- "FORK"
+        nfork <- FALSE
       }
-    } else if(length(cluster) != 1L || !(cluster %chin% c("PSOCK", "FORK"))) {
-      stop('cluster must be NULL, "PSOCK", or "FORK"')
+    } else if(length(cluster) != 1L || !(cluster %chin% c("PSOCK", "FORK", "MPI"))) {
+      stop('cluster must be NULL, "PSOCK", "FORK", or "MPI"')
+    } else if(cluster == "MPI" && length(find.package("Rmpi", quiet = TRUE)) == 0L) {
+      stop('Install the Rmpi package to use cluster = "MPI"')
+    } else {
+      nfork <- cluster != "FORK"
     }
+  } else {
+    nfork <- NULL
   }
   # par_lvl is checked before shortest paths computation
+  write_disk <- !is.null(write_dir)
+  if(write_disk) {
+    if(length(write_dir) != 1L || !is.character(write_dir) || !dir.exists(write_dir)) stop("write_dir must be NULL or the path of an existent directory")
+    if(is.null(file_type)) {
+      if(output_lines) {
+        file_type <- "shp"
+        file_type_rds <- NULL
+      } else {
+        file_type_rds <- TRUE
+      }
+    } else {
+      if(length(file_type) != 1L || !is.character(file_type)) stop("file_type must be NULL or a character string")
+      if(output_lines) {
+        file_type_rds <- NULL
+      } else {
+        if(!(file_type %chin% c("rds", "csv"))) stop('file_type must be NULL, "rds", or "csv" if output = "distances"')
+        file_type_rds <- file_type == "rds"
+      }
+    }
+    if(p_list) {
+      if(origin_list) {
+        wp <- nchar(length(origins))
+      } else {
+        wp <- nchar(length(destinations))
+      }
+    }
+    if(output_lines && length(list.files(write_dir, "^results[.]")) > 0L) {
+      stop("results already exists in ", write_dir)
+    }
+  }
+  if(length(unconnected_error) != 1L || !is.logical(unconnected_error) || is.na(unconnected_error)) {
+    stop("unconnected_error must be logical and of length one")
+  }
   
   if(verbose) message("Constructing graph")
   
@@ -268,7 +328,7 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     by = -yres, length.out = nr), each = nc), 1:.N)]                            # Obtain cell numbers and coordinates
   crd <- stats::na.omit(crd, cols = 1:(NCOL(crd) - 3L))                         # Subset to cells with non-NA values in all matrices
   if(!(tr_fun_specified && any(args_used[6:7]))) crd[, setdiff(names(crd), c("x", "y", "c_n")) := NULL]
-  data.table::setkey(crd, "c_n")
+  data.table::setkey(crd, c_n)
   
   # Obtain adjacency matrix
   if(lonlat) {
@@ -303,12 +363,16 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
   crd[, c("c_n", "c_n_c") := NULL]
   
   # Register parallel backend
-  if(ncoresg1 && tr_fun_specified && args_used[9L]) {
+  if(ncoresg1 && tr_fun_specified && args_used[9L] && nfork) {
     if(cluster == "PSOCK") {
-      cl <- parallel::makePSOCKcluster(ncores)
+      cl <- parallel::makePSOCKcluster(ncores, useXDR = FALSE)
     } else {
-      cl <- parallel::makeForkCluster(ncores)
+      cl <- parallel::makeCluster(type = "MPI")
     }
+    parallel::clusterEvalQ(cl, igraph::igraph_options(return.vs.es = FALSE))
+    on.exit({
+      if(!is.null(cl)) try(parallel::stopCluster(cl), silent = TRUE)
+    }, add = TRUE)
   } else {
     cl <- NULL
   }
@@ -343,14 +407,24 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     if(args_used[8L]) tr_fun_args$nc <- ncores
     if(args_used[9L]) tr_fun_args$cl <- cl
     tr_fun_args <- do.call(tr_fun, tr_fun_args[tr_fun_v])
-    if(!is.vector(tr_fun_args)) stop("tr_fun must return a vector")
-    if(any(tr_fun_args < 0)) stop("tr_fun must not return negative values")
-    if(length(tr_fun_args) != NROW(rst)) stop("The number of values returned by tr_fun must equal the number of edges")
+    if(!is.vector(tr_fun_args)) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
+      stop("tr_fun must return a vector")
+    }
+    if(any(tr_fun_args < 0)) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
+      stop("tr_fun must not return negative values")
+    }
+    if(length(tr_fun_args) != NROW(rst)) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
+      stop("The number of values returned by tr_fun must equal the number of edges")
+    }
     rst <- igraph::set_edge_attr(igraph::graph_from_edgelist(as.matrix(rst), directed = tr_directed), "weight", value = tr_fun_args) # Construct graph
     rm(tr_fun_args, args_used, tr_fun_v)
   } else {
     rst <- igraph::set_edge_attr(igraph::graph_from_edgelist(as.matrix(rst), directed = FALSE), "weight", value = compute_dists_g(rst, crd[, c("x", "y")],
       round_dist, contiguity, yres, xres, nr, ymin, lonlat, radius, ncores))    # Construct graph
+    tr_directed <- FALSE
   }
   
   if(verbose) message("Computing shortest paths")
@@ -365,78 +439,194 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     }
   }
   if(ncoresg1) {
-    par_lvl <- match.arg(par_lvl)
-    if(!origin_list && dest_specified && !dest_list && par_lvl == "points_lists") {
+    par_lvl <- match(match.arg(par_lvl), c("points", "points_lists"))
+    if(!origin_list && dest_specified && !dest_list && par_lvl == 2L) {
+      if(!is.null(cl)) parallel::stopCluster(cl)
       stop('If par_lvl is "points_lists", origins or destinations must be a list')
     }
-    if(is.null(cl)) {
+    if(is.null(cl) && nfork) {
       if(cluster == "PSOCK") {
-        cl <- parallel::makePSOCKcluster(ncores)
+        cl <- parallel::makePSOCKcluster(ncores, useXDR = FALSE)
       } else {
-        cl <- parallel::makeForkCluster(ncores)
+        cl <- parallel::makeCluster(type = "MPI")
       }
+      parallel::clusterEvalQ(cl, igraph::igraph_options(return.vs.es = FALSE))
+      on.exit({
+        if(!is.null(cl)) try(parallel::stopCluster(cl), silent = TRUE)
+      }, add = TRUE)
     }
+  } else {
+    par_lvl <- 0L
   }
   
   rm(tr_fun_specified, paths_ncores_specified)
   
   # Compute shortest paths
-  output_lines <- output == "lines"
+  if(write_disk && p_list) {
+    write_file <- function(o, P) {
+      if(output_lines) {
+        terra::writeVector(o, paste0(write_dir, "/", formatC(P, flag = "0", width = wp), ".", file_type))
+      } else if(file_type_rds) {
+        saveRDS(o, paste0(write_dir, "/", formatC(P, flag = "0", width = wp), ".rds"))
+      } else {
+        data.table::fwrite(o, paste0(write_dir, "/", formatC(P, flag = "0", width = wp), ".csv"))
+      }
+      return(NULL)
+    }
+  }
   if(origin_list) {
     if(dest_specified) {
       if(dest_list) {
-        if(ncoresg1 && par_lvl == "points_lists") {
-          paths <- function(O) {
-            return(compute_spaths_g(origins[[O]], rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, TRUE,
-              destinations[[O]], destination_nms_specified))
+        if(ncoresg1 && par_lvl == 2L) {
+          if(write_disk) {
+            paths <- function(O, D, P) {
+              return(write_file(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, NULL, FALSE,
+                unconnected_error, tr_directed, D, destination_nms_specified), P))
+            }
+            if(nfork) {
+              parallel::clusterMap(cl, paths, origins, destinations, 1:length(origins), USE.NAMES = FALSE, .scheduling = "dynamic")
+            } else {
+              parallel::mcmapply(paths, origins, destinations, 1:length(origins), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE,
+                mc.silent = TRUE, mc.cores = ncores)
+            }
+          } else {
+            paths <- function(O, D) {
+              return(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, FALSE, NULL, TRUE,
+                unconnected_error, tr_directed, D, destination_nms_specified))
+            }
+            if(nfork) {
+              paths <- parallel::clusterMap(cl, paths, origins, destinations, USE.NAMES = FALSE, .scheduling = "dynamic")
+            } else {
+              paths <- parallel::mcmapply(paths, origins, destinations, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
+                mc.cores = ncores)
+            }
+            if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]]))
           }
-          paths <- parallel::parLapplyLB(cl, 1:length(origins), paths)
-          if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]]))
         } else {
-          paths <- mapply(compute_spaths_g, ORIGINS = origins, DESTINATIONS = destinations, MoreArgs = list(rst = rst, crd = crd,
-            dest_specified = dest_specified, origin_nms_specified = origin_nms_specified, output_lines = output_lines, pairwise = pairwise,
-            NCORESG1 = ncoresg1, ncores = ncores, cl = cl, nvect = FALSE, destination_nms_specified = destination_nms_specified), SIMPLIFY = FALSE,
-            USE.NAMES = FALSE)
+          if(write_disk) {
+            mapply(function(O, D, P) write_file(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork,
+              cl, FALSE, unconnected_error, tr_directed, D, destination_nms_specified), P), origins, destinations, 1:length(origins), SIMPLIFY = FALSE,
+              USE.NAMES = FALSE)
+          } else {
+            paths <- mapply(compute_spaths_g, ORIGINS = origins, DESTINATIONS = destinations, MoreArgs = list(rst = rst, crd = crd,
+              dest_specified = dest_specified, origin_nms_specified = origin_nms_specified, output_lines = output_lines, pairwise = pairwise,
+              NCORESG1 = ncoresg1, ncores = ncores, nfork = nfork, cl = cl, nvect = FALSE, unconnected_error = unconnected_error,
+              tr_directed = tr_directed, destination_nms_specified = destination_nms_specified), SIMPLIFY = FALSE, USE.NAMES = FALSE)
+          }
         }
       } else {
-        if(ncoresg1 && par_lvl == "points_lists") {
-          paths <- function(O) {
-            return(compute_spaths_g(O, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, TRUE, destinations,
-              destination_nms_specified))
+        if(ncoresg1 && par_lvl == 2L) {
+          if(write_disk) {
+            paths <- function(O, P) {
+              return(write_file(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, NULL, FALSE,
+                unconnected_error, tr_directed, destinations, destination_nms_specified), P))
+            }
+            if(nfork) {
+              parallel::clusterMap(cl, paths, origins, 1:length(origins), USE.NAMES = FALSE, .scheduling = "dynamic")
+            } else {
+              parallel::mcmapply(paths, origins, 1:length(origins), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
+                mc.cores = ncores)
+            }
+          } else {
+            paths <- function(O) {
+              return(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, NULL, TRUE,
+                unconnected_error, tr_directed, destinations, destination_nms_specified))
+            }
+            if(nfork) {
+              paths <- parallel::parLapplyLB(cl, origins, paths)
+            } else {
+              paths <- parallel::mclapply(origins, paths, mc.preschedule = FALSE, mc.silent = TRUE, mc.cores = ncores)
+            }
+            if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]]))
           }
-          paths <- parallel::parLapplyLB(cl, origins, paths)
-          if(output_lines) paths <- lapply(paths, function(O) terra::vect(O[[1L]], type = "line", atts = O[[2L]]))
         } else {
-          paths <- lapply(origins, compute_spaths_g, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, cl, FALSE,
-            destinations, destination_nms_specified)
+          if(write_disk) {
+            mapply(function(O, P) write_file(compute_spaths_g(O, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, ncoresg1,
+              ncores, nfork, cl, FALSE, unconnected_error, tr_directed, destinations, destination_nms_specified), P), origins, 1:length(origins),
+              SIMPLIFY = FALSE, USE.NAMES = FALSE)
+          } else {
+            paths <- lapply(origins, compute_spaths_g, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork,
+              cl, FALSE, unconnected_error, tr_directed, destinations, destination_nms_specified)
+          }
         }
       }
     } else {
-      paths <- lapply(origins, compute_spaths_g, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, cl, FALSE)
+      if(write_disk) {
+        mapply(function(O, P) write_file(compute_spaths_g(O, rst, crd, FALSE, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork, cl,
+          FALSE, unconnected_error, tr_directed), P), origins, 1:length(origins), SIMPLIFY = FALSE, USE.NAMES = FALSE)
+      } else {
+        paths <- lapply(origins, compute_spaths_g, rst, crd, FALSE, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork, cl, FALSE,
+          unconnected_error, tr_directed)
+      }
     }
   } else {
     if(dest_specified) {
       if(dest_list) {
-        if(ncoresg1 && par_lvl == "points_lists") {
-          paths <- function(D) {
-            return(compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, TRUE,
-              destinations[[D]], destination_nms_specified))
+        if(ncoresg1 && par_lvl == 2L) {
+          if(write_disk) {
+            paths <- function(D, P) {
+              return(write_file(compute_spaths_g(origins, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, NULL, FALSE,
+                unconnected_error, tr_directed, D, destination_nms_specified), P))
+            }
+            if(nfork) {
+              parallel::clusterMap(cl, paths, destinations, 1:length(destinations), USE.NAMES = FALSE, .scheduling = "dynamic")
+            } else {
+              parallel::mcmapply(paths, destinations, 1:length(destinations), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE,
+                mc.silent = TRUE, mc.cores = ncores)
+            }
+          } else {
+            paths <- function(D) {
+              return(compute_spaths_g(origins, rst, crd, TRUE, origin_nms_specified, output_lines, pairwise, FALSE, NULL, NULL, NULL, TRUE,
+                unconnected_error, tr_directed, D, destination_nms_specified))
+            }
+            if(nfork) {
+              paths <- parallel::parLapplyLB(cl, destinations, paths)
+            } else {
+              paths <- parallel::mclapply(destinations, paths, mc.preschedule = FALSE, mc.silent = TRUE, mc.cores = ncores)
+            }
+            if(output_lines) paths <- lapply(paths, function(D) terra::vect(D[[1L]], type = "line", atts = D[[2L]]))
           }
-          paths <- parallel::parLapplyLB(cl, 1:length(destinations), paths)
-          if(output_lines) paths <- lapply(paths, function(D) terra::vect(D[[1L]], type = "line", atts = D[[2L]]))
         } else {
-          paths <- lapply(destinations, function(d) compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise,
-            ncoresg1, ncores, cl, FALSE, d, destination_nms_specified))
+          if(write_disk) {
+            mapply(function(d, P) write_file(compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1,
+              ncores, fork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified), P), destinations, 1:length(destinations),
+              SIMPLIFY = FALSE, USE.NAMES = FALSE)
+          } else {
+            paths <- lapply(destinations, function(d) compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise,
+              ncoresg1, ncores, fork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified))
+          }
         }
       } else {
-        paths <- compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, cl, FALSE, destinations,
-          destination_nms_specified)
+        paths <- compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork, cl, FALSE,
+          unconnected_error, tr_directed, destinations, destination_nms_specified)
+        if(write_disk) {
+          if(output_lines) {
+            terra::writeVector(paths, paste0(write_dir, "/results.", file_type))
+          } else if(file_type_rds) {
+            saveRDS(paths, paste0(write_dir, "/results.rds"))
+          } else {
+            data.table::fwrite(paths, paste0(write_dir, "/results.csv"))
+          }
+        }
       }
     } else {
-      paths <- compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, cl, FALSE)
+      paths <- compute_spaths_g(origins, rst, crd, FALSE, origin_nms_specified, output_lines, pairwise, ncoresg1, ncores, nfork, cl, FALSE,
+        unconnected_error, tr_directed)
+      if(write_disk) {
+        if(output_lines) {
+          terra::writeVector(paths, paste0(write_dir, "/results.", file_type))
+        } else if(file_type_rds) {
+          saveRDS(paths, paste0(write_dir, "/results.rds"))
+        } else {
+          data.table::fwrite(paths, paste0(write_dir, "/results.csv"))
+        }
+      }
     }
   }
-  if(ncoresg1) parallel::stopCluster(cl)
-  
+  if(ncoresg1 && nfork && !is.null(cl)) {
+    parallel::stopCluster(cl)
+    cl <- NULL
+  }
+  if(write_disk) paths <- NULL
   return(paths)
 }

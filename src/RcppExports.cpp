@@ -104,6 +104,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// define_ranges
+Rcpp::IntegerVector define_ranges(Rcpp::IntegerVector& n_rows, int avg_rows, int ncores);
+RcppExport SEXP _spaths_define_ranges(SEXP n_rowsSEXP, SEXP avg_rowsSEXP, SEXP ncoresSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type n_rows(n_rowsSEXP);
+    Rcpp::traits::input_parameter< int >::type avg_rows(avg_rowsSEXP);
+    Rcpp::traits::input_parameter< int >::type ncores(ncoresSEXP);
+    rcpp_result_gen = Rcpp::wrap(define_ranges(n_rows, avg_rows, ncores));
+    return rcpp_result_gen;
+END_RCPP
+}
+// list_origins
+Rcpp::IntegerVector list_origins(int n_origins);
+RcppExport SEXP _spaths_list_origins(SEXP n_originsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n_origins(n_originsSEXP);
+    rcpp_result_gen = Rcpp::wrap(list_origins(n_origins));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_spaths_dists_queen_d", (DL_FUNC) &_spaths_dists_queen_d, 11},
@@ -111,6 +135,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_spaths_dists_queen_i", (DL_FUNC) &_spaths_dists_queen_i, 11},
     {"_spaths_dists_rook_i", (DL_FUNC) &_spaths_dists_rook_i, 11},
     {"_spaths_openmp_installed", (DL_FUNC) &_spaths_openmp_installed, 0},
+    {"_spaths_define_ranges", (DL_FUNC) &_spaths_define_ranges, 3},
+    {"_spaths_list_origins", (DL_FUNC) &_spaths_list_origins, 1},
     {NULL, NULL, 0}
 };
 

@@ -21,3 +21,11 @@ openmp_installed <- function() {
     .Call(`_spaths_openmp_installed`)
 }
 
+define_ranges <- function(n_rows, avg_rows, ncores) {
+    .Call(`_spaths_define_ranges`, n_rows, avg_rows, ncores)
+}
+
+list_origins <- function(n_origins) {
+    .Call(`_spaths_list_origins`, n_origins)
+}
+

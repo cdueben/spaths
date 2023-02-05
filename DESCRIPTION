@@ -1,7 +1,7 @@
 Package: spaths
 Type: Package
 Title: Shortest Paths between Locations
-Version: 1.0.1
+Version: 1.0.2
 Authors@R: person("Christian", "Düben", email = "christian.dueben@uni-hamburg.de", role = c("aut", "cre"))
 Description: The package computes shortest paths between places taking barriers or cost surfaces into account. Apart from relating locations on Earth, 
   spaths can also compute shortest paths more generally on spheres and planes.
@@ -11,6 +11,6 @@ URL: https://github.com/ChristianDueben/spaths
 BugReports: https://github.com/ChristianDueben/spaths/issues
 Imports: base (>= 4.0.0), Rcpp (>= 1.0.9), data.table, igraph, parallel, sf, stats, terra, utils
 LinkingTo: Rcpp
-Suggests: knitr, rmarkdown
+Suggests: knitr, rmarkdown, Rmpi
 VignetteBuilder: knitr
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.3

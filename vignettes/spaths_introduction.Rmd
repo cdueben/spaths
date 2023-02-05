@@ -1,7 +1,7 @@
 ---
 title: "Introduction to spaths"
 author: "Christian Düben"
-date: "Updated: October 28, 2022"
+date: "Updated: February 05, 2023"
 output: 
   rmarkdown::html_vignette:
     number_sections: true
@@ -83,7 +83,7 @@ Rcpp::sourceCpp(code = '
 ')
 ```
 
-<p style="text-align: justify">The `nc` parameter is meant to parallelize C++, not R, functions. When `ncores > 1`, a parallel R backend pointed to by `cl` is already registered before `tr_fun` is called.</p>
+<p style="text-align: justify">The `nc` parameter is meant to parallelize C++ or forked R functions. When `ncores > 1` and `cluster` is `"PSOCK"` or `"MPI"`, a parallel R backend pointed to by `cl` is already registered before `tr_fun` is called.</p>
 
 ```{r, eval = FALSE}
 function(v1, v2, d, cl) {
@@ -178,7 +178,7 @@ _Result_: List of SpatVectors of $N_{origins,i} N_{destinations,i}$ rows, if `pa
 ## Graph Size
 <p style="text-align: justify">Graph size, primarily expressed by the number of edges, has a major effect on computational time. Modifying it has the potential to speed up `spaths_earth` and `spaths_general` to a much larger degree than the parallelization options described in the next section usually do.</p>
 
-<p style="text-align: justify">There are various ways of decreasing the graph size. On the one hand, there are methods which alter the graph size but are also likely to affect the shortest paths. They include applying rook's case instead of queen's case contiguity and using coarser `rst` resolutions. On the other hand, there are approaches that leave the paths unaffected. This foremostly entails cutting off vertices, i.e. grid cells, of which you are sure that they are not on the shortest path. When assessing the distance from Mombasa to Marseille by boat, you already know that the path will follow the East-African coast and then pass through the Red Sea, the Suez Canal, and the Mediterranean. So, the `rst` grid can e.g. omit the Pacific, Atlantic, and much of the Indian Ocean. Apart from adjusting the extent, you can remove pixels by increasing the share of `NA` cells within the grid. Draw polygons of regions that the path is not expected to touch and update the grid via `terra::mask`. The `raster` package also offers a `mask` function, though it is usually a lot slower than `terra` mask and one of the main reasons to generally use `terra` instead of `raster`. You can create polygons through various R packages or through GUI GIS software like QGIS. If you use a custom `tr_fun` transition function, check if it actually produces asymmetric transition costs. If its transition costs are symmetric, set `tr_directed` to `FALSE` which cuts the number of edges by 50 percent.</p>
+<p style="text-align: justify">There are various ways of decreasing the graph size. On the one hand, there are methods which alter the graph size but are also likely to affect the shortest paths. They include applying rook's case instead of queen's case contiguity and using coarser `rst` resolutions. On the other hand, there are approaches that leave the paths unaffected. This foremostly entails cutting off vertices, i.e. grid cells, of which you are sure that they are not on the shortest path. When assessing the distance from Mombasa to Marseille by boat, you already know that the path will follow the East-African coast and then pass through the Red Sea, the Suez Canal, and the Mediterranean. So, the `rst` grid can e.g. omit the Pacific, Atlantic, and much of the Indian Ocean. Apart from adjusting the extent, you can remove pixels by increasing the share of `NA` cells within the grid. Draw polygons of regions that the path is not expected to touch and update the grid via `terra::mask`. The `raster` package also offers a `mask` function, though it is usually a lot slower than `terra::mask` and one of the main reasons to generally use `terra` instead of `raster`. You can create polygons through various R packages or through GUI GIS software like QGIS. If you use a custom `tr_fun` transition function, check if it actually produces asymmetric transition costs. If its transition costs are symmetric, set `tr_directed` to `FALSE` which cuts the number of edges by 50 percent.</p>
 <br>
 
 ## Parallelization

@@ -27,6 +27,9 @@ spaths_general(
   par_lvl = c("points", "points_lists"),
   cluster = NULL,
   paths_ncores = NULL,
+  write_dir = NULL,
+  file_type = NULL,
+  unconnected_error = TRUE,
   verbose = FALSE
 )
 }
@@ -48,8 +51,8 @@ use a list instead of a single matrix, if you are utilizing the cell values, i.e
 of what the column names are.}
 
 \item{destinations}{A single matrix or data frame, a list of them. The first column states the x and the second column the y coordinates, irrespective 
-of what the column names are. If not specified, the function to computes shortest paths between the \code{origins} points. Passing a list of data 
-frames or matrices is a way not to relate all origins to all destinations. Details are outlined below.}
+of what the column names are. It defaults to \code{NULL}, resulting in the function to compute shortest paths between the \code{origins} points. 
+Passing a list of data frames or matrices is a way not to relate all origins to all destinations. Details are outlined below.}
 
 \item{lonlat}{Logical specifying whether the data is in lonlat (\code{TRUE}), i.e. spherical, or in planar (\code{FALSE}) format. It defaults to 
 \code{TRUE}.}
@@ -107,15 +110,34 @@ accordingly induces a single-threaded process.}
 parallelizes over the origin (and destination) point combinations. \code{"points_lists"} parallelizes over the list elements of \code{origins} (and 
 \code{destinations}), if these arguments are lists.}
 
-\item{cluster}{\code{"PSOCK"} or \code{"FORK"}, indicating the type of \code{parallel} cluster that the function employs when \code{ncores > 1} or 
-\code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. Windows machines must use \code{"PSOCK"}, 
-while Mac and Linux can employ either of the two options.}
+\item{cluster}{\code{"PSOCK"}, \code{"FORK"}, or \code{"MPI"}, indicating the type of \code{parallel} cluster that the function employs when 
+\code{ncores > 1} or \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. \code{"FORK"} is not 
+available on Windows machines. \code{"MPI"} requires the Rmpi package to be installed. There are various ways of parallelizing R with MPI. This 
+function utilizes the variant implemented in the \code{snow} package.}
 
 \item{paths_ncores}{An integer specifying the number of CPU cores to use in shortest paths computations. It defaults to the value of \code{ncores}. 
 Thus, only set it, if you want edge weights and shortest paths be computed with differently many cores. The \code{dist_comp = "spaths"} edge weight
 computations employ efficient C++ level parallelization. The shortest paths sections, in contrast, parallelize on the R level. If you use a \code{PSOCK} 
 cluster, \code{spaths_earth} copies various objects to the workers before the paths algorithm is applied. This can make the parallel execution slower 
 than its serial counterpart. Thus, consider setting \code{paths_ncores = 1}, especially when working with \code{PSOCK} clusters.}
+
+\item{write_dir}{Directory to which write output. If \code{NULL} (default), the output is not written to disk but returned by the function. When 
+specifying a directory, \code{spaths_general} writes the output to it and returns \code{NULL}. Keeping the results in RAM is commonly faster than 
+writing them to disk. Thus, the recommendation is to keep the default unless your machine has insufficient RAM. In cases in which the function would 
+return a list, i.e. if \code{origins} or \code{destinations} are lists, \code{spaths_general} writes one file per list element. File names state which 
+element the file represents: the number following \code{p} points to the element of \code{origins} or \code{destinations}. Values begin at 1. In 
+generating file names of equal length, the function employs leading zeros. So, if the function computes 100 SpatVectors, the file corresponding to the 
+first list element is not \code{p1} but \code{p001}. In the basic case, in which the result is a single data.table or SpatVector object, the output 
+file is named \code{results}. The directory must not contain any file named as one of the output files - irrespective of file type - if 
+\code{output = "lines"}.}
+
+\item{file_type}{The output file type when \code{write_dir} is specified. It defaults to \code{"shp"} in case \code{output = "lines"}, but can also 
+be set to \code{"kml"}, \code{"json"}, or any other vector format that \code{terra::writeVector} can write. \code{terra::gdal(drivers = TRUE)} lists 
+drivers. \code{output = "distances"} defaults to \code{"rds"} as file type, but can alternatively be set to \code{"csv"}.}
+
+\item{unconnected_error}{Logical specifying whether the function throws an error when trying to compute the distance between locations unconnected by 
+the \code{rst} grid. If \code{TRUE} (default), the function throws and error and aborts. If \code{FALSE}, unconnected places have an \code{Inf} 
+distance. If \code{output = "lines"}, attempting to link unconnected places always throws an error.}
 
 \item{verbose}{Logical specifying whether the function prints messages on progress. It defaults to \code{FALSE}.}
 }

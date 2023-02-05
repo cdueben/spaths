@@ -1,4 +1,8 @@
-# spaths 1.0.1
+# spaths 1.0.2
+* Bug fixes
+* Performance optimizations
+* Additional features
 
+# spaths 1.0.1
 * Various bug fixes
 * `copy` and related functionalities added

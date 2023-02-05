@@ -26,6 +26,9 @@ spaths_earth(
   rst_par_lvl = c("points", "points_lists", "none"),
   cluster = NULL,
   paths_ncores = NULL,
+  write_dir = NULL,
+  file_type = NULL,
+  unconnected_error = TRUE,
   verbose = FALSE
 )
 }
@@ -73,11 +76,13 @@ distance between pixel centroids. Permitted function parameter names are \code{d
 longitude of the first cell), \code{x2} (x coordinate or longitude of the second cell), \code{y1} (y coordinate or latitude of the first cell), 
 \code{y2} (y coordinate or latitude of the second cell), \code{v1} (\code{rst} layers' values from the first cell), \code{v2} (\code{rst} layers' 
 values from the second cell), \code{nc} (number of CPU cores), and \code{cl} (cluster object returned by \code{parallel::makePSOCKcluster(ncores)} or 
-\code{parallel::makeForkCluster(ncores)}). If \code{lonlat} is \code{TRUE} or if \code{dist_comp = "terra"}, \code{d} is measured in the meters. 
-Otherwise, it uses the units of the CRS. \code{nc} is meant to be used in C++ functions. A parallel backend at the R level pointed to by \code{cl} is 
-already registered before \code{tr_fun} is called, in case \code{ncores > 1}. If \code{rst} has one layer, the values are passed to \code{v1} and 
-\code{v2} as vectors, otherwise they are passed as a data table where the first column refers to the first layer, the second column to the second 
-layer etc. Note that data tables are also data frames.}
+\code{parallel::makeCluster(type = "MPI")}). If \code{lonlat} is \code{TRUE} or if \code{dist_comp = "terra"}, \code{d} is measured in the meters. 
+Otherwise, it uses the units of the CRS. \code{nc} is meant to be used in C++ functions or in \code{FORK}-based parallelization. A parallel backend at 
+the R level pointed to by \code{cl} is already registered before \code{tr_fun} is called, in case \code{ncores > 1} and \code{cluster} is not 
+\code{"FORK"}. Use \code{multicore}-based functions like \code{parallel::mclapply} rather than their less efficient \code{snow}-based counterparts 
+like \code{parallel::parLapply} in the \code{"FORK"} case. If \code{rst} has one layer, the values are passed to \code{v1} and \code{v2} as vectors, 
+otherwise they are passed as a data table where the first column refers to the first layer, the second column to the second layer etc. Note that data 
+tables are also data frames.}
 
 \item{v_matrix}{Logical specifying whether to pass values to \code{v1} and \code{v2} in \code{tr_fun} as matrices (\code{TRUE}) instead of data tables 
 in the multi-layer case and vectors in the single-layer case (\code{FALSE}). It defaults to \code{FALSE}. Setting it to \code{TRUE} might e.g. be 
@@ -130,15 +135,38 @@ computations on the unmodified \code{rst} when using multiple cores, \code{updat
 \code{rst_par_lvl} defines the parallel level at which those initial paths are derived. \code{"points"} (default) and \code{"points_list"} are 
 equivalent to their counterparts in \code{par_lvl}, \code{"none"} induces a serial, i.e. non-parallel, execution.}
 
-\item{cluster}{\code{"PSOCK"} or \code{"FORK"}, indicating the type of \code{parallel} cluster that the function employs when \code{ncores > 1} or 
-\code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. Windows machines must use \code{"PSOCK"}, 
-while Mac and Linux can employ either of the two options.}
+\item{cluster}{\code{"PSOCK"}, \code{"FORK"}, or \code{"MPI"}, indicating the type of \code{parallel} cluster that the function employs when 
+\code{ncores > 1} or \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. \code{"FORK"} is not 
+available on Windows machines. \code{"MPI"} requires the Rmpi package to be installed. There are various ways of parallelizing R with MPI. This 
+function utilizes the variant implemented in the \code{snow} package.}
 
-\item{paths_ncores}{An integer specifying the number of CPU cores to use in shortest paths computations. It defaults to the value of \code{ncores}. 
+\item{paths_ncores}{Integer specifying the number of CPU cores to use in shortest paths computations. It defaults to the value of \code{ncores}. 
 Thus, only set it, if you want edge weights and shortest paths be computed with differently many cores. The \code{dist_comp = "spaths"} edge weight
 computations employ efficient C++ level parallelization. The shortest paths sections, in contrast, parallelize on the R level. If you use a \code{PSOCK} 
 cluster, \code{spaths_earth} copies various objects to the workers before the paths algorithm is applied. This can make the parallel execution slower 
 than its serial counterpart. Thus, consider setting \code{paths_ncores = 1}, especially when working with \code{PSOCK} clusters.}
+
+\item{write_dir}{Directory to which write output. If \code{NULL} (default), the output is not written to disk but returned by the function. When 
+specifying a directory, \code{spaths_earth} writes the output to it and returns \code{NULL}. Keeping the results in RAM is commonly faster than 
+writing them to disk. Thus, the recommendation is to keep the default unless your machine has insufficient RAM. In cases in which the function would 
+return a list, i.e. if \code{update_rst} is specified or if \code{origins} or \code{destinations} are lists, \code{spaths_earth} writes one file per 
+list element. File names state which element the file represents: the number following \code{u} points to the element of \code{update_rst} and the 
+number following \code{p} to the element of \code{origins} or \code{destinations}. \code{u} values start at 0 where 0 features results based on 
+\code{rst} not updated by \code{update_rst}. \code{p} values begin at 1. Hence, when all \code{update_rst}, \code{origins}, and \code{destinations} 
+are lists, the first element (\code{[[1]][[1]]}), which represents the paths between the points in the first origins list element and the points in 
+the first destinations list element based on the not updated graph, is written to \code{u0_p1}. In generating file names of equal length, the function 
+employs leading zeros. So, if \code{update_rst} is a list of 100 SpatVectors, the first file is not \code{u0} but \code{u000}. In the basic case, in 
+which the result is a single data.table or SpatVector object, the output file is named \code{results}. The directory must not contain any file named 
+as one of the output files - irrespective of file type - if \code{output = "lines"}.}
+
+\item{file_type}{The output file type when \code{write_dir} is specified. It defaults to \code{"shp"} in case \code{output = "lines"}, but can also 
+be set to \code{"kml"}, \code{"json"}, or any other vector format that \code{terra::writeVector} can write. \code{terra::gdal(drivers = TRUE)} lists 
+drivers. \code{output = "distances"} defaults to \code{"rds"} as file type, but can alternatively be set to \code{"csv"}.}
+
+\item{unconnected_error}{Logical specifying whether the function throws an error when trying to compute the distance between locations unconnected by 
+the \code{rst} grid. If \code{TRUE} (default), the function throws and error and aborts. If \code{FALSE}, unconnected places have an \code{Inf} 
+distance. The argument only has an effect when \code{update_rst = NULL} or \code{copy = FALSE}. Otherwise, i.e. if \code{output = "lines"} or 
+\code{update_rst} is not \code{NULL} and \code{copy = TRUE}, attempting to link unconnected places always throws an error.}
 
 \item{verbose}{Logical specifying whether the function prints messages on progress. It defaults to \code{FALSE}.}
 }
@@ -147,7 +175,7 @@ In the basic cases, i.e. when neither \code{origins} nor \code{destinations} are
 returns a SpatVector lines object with \code{output = "lines"} and a data table with \code{output = "distances"}. If \code{origins} or 
 \code{destinations} are lists or \code{update_rst} is specified, it returns a list or nested list of SpatVectors or data tables. In the nested case, 
 the outer list refers to the \code{update_rst} level and the inner list to the \code{origins} and \code{destinations} level. Consult the 
-\href{../doc/spaths_introduction.html}{vignette} for further details.
+\href{../doc/spaths_introduction.html}{vignette} for further details, such as the object's number of rows.
 
 The distances are the total transition costs along the shortest paths. If \code{lonlat} is \code{TRUE} or if \code{dist_comp = "terra"}, these 
 distances are measured in the meters. Otherwise, they use the units of the CRS. If you pass a function to \code{tr_fun}, the total transition cost is 
