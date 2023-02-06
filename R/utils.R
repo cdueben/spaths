@@ -72,6 +72,8 @@ report_points_unc <- function(o, pl, pairwise = FALSE, dest_specified = TRUE, d 
   stop(s)
 }
 
+# Avoid R CMD check note
+utils::globalVariables(c(".", "O", "c_n", "c_n_c", "cls", "g", "origin", "destination", "distance", "from", "to"))
 
 # Function called when loading the package (circumvents current igraph RAM bug)
 .onLoad <- function(libname, pkgname) {

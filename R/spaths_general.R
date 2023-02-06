@@ -589,11 +589,11 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
         } else {
           if(write_disk) {
             mapply(function(d, P) write_file(compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise, ncoresg1,
-              ncores, fork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified), P), destinations, 1:length(destinations),
+              ncores, nfork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified), P), destinations, 1:length(destinations),
               SIMPLIFY = FALSE, USE.NAMES = FALSE)
           } else {
             paths <- lapply(destinations, function(d) compute_spaths_g(origins, rst, crd, dest_specified, origin_nms_specified, output_lines, pairwise,
-              ncoresg1, ncores, fork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified))
+              ncoresg1, ncores, nfork, cl, FALSE, unconnected_error, tr_directed, d, destination_nms_specified))
           }
         }
       } else {
