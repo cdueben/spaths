@@ -5,16 +5,15 @@
 # Check points' location and list the corresponding grid cell numbers
 convert_points_g <- function(v, rst, rst_list, nr, nc, xres, yres, xmin, ymin, nms, nms_specified, o = TRUE) {
   if(!any(class(v) %chin% c("matrix", "data.frame"))) stop(ifelse(o, "origins", "destinations"), " must be a matrix or data frame, or a list of them")
-  if(nms_specified) {
-    if(!(nms %chin% names(v))) {
-      stop(ifelse(o, "origin", "destination"), "_names must either be NULL or the name of a column in ", ifelse(o, "origins", "destinations"))
-    }
-    nms <- unlist(v[, nms], use.names = FALSE)
+  if(nms_specified && !(nms %chin% names(v))) {
+    stop(ifelse(o, "origin", "destination"), "_names must either be NULL or the name of a column in ", ifelse(o, "origins", "destinations"))
   }
   if(data.table::is.data.table(v)) {
+    if(nms_specified) nms <- v[[nms]]
     v_col <- check_position(v[, 1L][[1L]], xmin, xres, nc, o)
     v_row <- check_position(v[, 2L][[1L]], ymin, yres, nr, o)
   } else {
+    if(nms_specified) nms <- unlist(v[, nms], use.names = FALSE)
     v_col <- check_position(v[, 1L], xmin, xres, nc, o)
     v_row <- check_position(v[, 2L], ymin, yres, nr, o)
   }
@@ -351,8 +350,10 @@ compute_spaths_g <- function(ORIGINS, rst, crd, dest_specified, origin_nms_speci
           p <- function(o) {
             s <- as.vector(igraph::distances(rst, ORIGINS[o], ORIGINS, mode = "out", algorithm = "dijkstra"))
             l <- length(o)
-            s <- data.table::data.table(origin = on[rep.int(o, os_length)], destination = rep(on, each = l), distance = s)[-seq.int((min(o,
+            s <- data.table::data.table(origin = rep.int(o, os_length), destination = rep(on, each = l), distance = s)[-seq.int((min(o,
               na.rm = TRUE) - 1L) * l + 1L, by = l + 1L, length.out = l),]
+            data.table::setorder(s, origin)
+            if(origin_nms_specified) s[, origin := on[origin]]
             if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) {
               s <- s[s[which.max(s[["distance"]]), "origin"], nomatch = NULL, on = "origin"]
               report_points_unc(s[1L, "origin"][["origin"]], as.integer(is.finite(s[["distance"]])), dest_specified = FALSE, d = s[["destination"]])
@@ -364,7 +365,10 @@ compute_spaths_g <- function(ORIGINS, rst, crd, dest_specified, origin_nms_speci
             m1 <- min(o, na.rm = TRUE) + 1L
             s <- igraph::distances(rst, ORIGINS[o], ORIGINS[m1:os_length], mode = "out", algorithm = "dijkstra")
             ut <- upper.tri(s, TRUE)
-            s <- data.table::data.table(origin = on[o[row(s)[ut]]], destination = on[(m1:os_length)[col(s)[ut]]], distance = s[ut])
+            s <- data.table::data.table(origin = o[row(s)[ut]], destination = on[(m1:os_length)[col(s)[ut]]], distance = s[ut])
+            rm(m1, ut)
+            data.table::setorder(s, origin)
+            if(origin_nms_specified) s[, origin := on[origin]]
             if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) {
               s <- s[s[which.max(s[["distance"]]), "origin"], nomatch = NULL, on = "origin"]
               report_points_unc(s[1L, "origin"][["origin"]], as.integer(is.finite(s[["distance"]])), dest_specified = FALSE, d = s[["destination"]])
@@ -381,18 +385,16 @@ compute_spaths_g <- function(ORIGINS, rst, crd, dest_specified, origin_nms_speci
       } else {
         if(tr_directed) {
           p <- as.vector(igraph::distances(rst, ORIGINS, ORIGINS, mode = "out", algorithm = "dijkstra"))
-          p <- data.table::data.table(origin = rep.int(on, os_length), destination = rep(on, each = os_length), distance = p)[-seq.int(1L, by = os_length,
-            length.out = os_length)]
+          p <- data.table::data.table(origin = rep.int(1:os_length, os_length), destination = rep(on, each = os_length), distance = p)[-seq.int(1L,
+            by = os_length, length.out = os_length)]
         } else {
           p <- igraph::distances(rst, ORIGINS, ORIGINS[2:os_length], mode = "out", algorithm = "dijkstra")
           p <- p[upper.tri(p, TRUE)]
-          if(origin_nms_specified) {
-            p <- data.table::data.table(origin = on[list_origins(os_length)], destination = on[rep.int(2:os_length, 1:o1)], distance = p)
-          } else {
-            p <- data.table::data.table(origin = list_origins(os_length), destination = rep.int(2:os_length, 1:o1), distance = p)
-          }
+          p <- data.table::data.table(origin = list_origins(os_length), destination = on[rep.int(2:os_length, 1:o1)], distance = p)
         }
-        if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) {
+        data.table::setorder(p, origin)
+        if(origin_nms_specified) p[, origin := on[origin]]
+        if(unconnected_error && is.infinite(max(p[["distance"]], na.rm = TRUE))) {
           p <- p[p[which.max(p[["distance"]]), "origin"], nomatch = NULL, on = "origin"]
           report_points_unc(p[1L, "origin"][["origin"]], as.integer(is.finite(p[["distance"]])), dest_specified = FALSE, d = p[["destination"]])
         }
