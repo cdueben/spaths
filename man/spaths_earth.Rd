@@ -137,8 +137,8 @@ equivalent to their counterparts in \code{par_lvl}, \code{"none"} induces a seri
 
 \item{cluster}{\code{"PSOCK"}, \code{"FORK"}, or \code{"MPI"}, indicating the type of \code{parallel} cluster that the function employs when 
 \code{ncores > 1} or \code{paths_ncores > 1}. The function defaults to \code{"PSOCK"} on Windows and to \code{"FORK"} otherwise. \code{"FORK"} is not 
-available on Windows machines. \code{"MPI"} requires the Rmpi package to be installed. There are various ways of parallelizing R with MPI. This 
-function utilizes the variant implemented in the \code{snow} package.}
+available on Windows machines. \code{"MPI"} requires the Rmpi and snow packages to be installed. There are various ways of parallelizing R with MPI. 
+This function utilizes the variant implemented in the snow package.}
 
 \item{paths_ncores}{Integer specifying the number of CPU cores to use in shortest paths computations. It defaults to the value of \code{ncores}. 
 Thus, only set it, if you want edge weights and shortest paths be computed with differently many cores. The \code{dist_comp = "spaths"} edge weight

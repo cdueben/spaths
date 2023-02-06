@@ -11,6 +11,6 @@ URL: https://github.com/ChristianDueben/spaths
 BugReports: https://github.com/ChristianDueben/spaths/issues
 Imports: base (>= 4.0.0), Rcpp (>= 1.0.9), data.table, igraph, parallel, sf, stats, terra, utils
 LinkingTo: Rcpp
-Suggests: knitr, rmarkdown, Rmpi
+Suggests: knitr, rmarkdown, Rmpi, snow
 VignetteBuilder: knitr
 RoxygenNote: 7.2.3
