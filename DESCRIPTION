@@ -1,6 +1,6 @@
 Package: spaths
 Type: Package
-Title: Shortest Paths between Locations
+Title: Shortest Paths Between Locations
 Version: 1.0.2
 Authors@R: person("Christian", "Düben", email = "christian.dueben@uni-hamburg.de", role = c("aut", "cre"))
 Description: The package computes shortest paths between places taking barriers or cost surfaces into account. Apart from relating locations on Earth, 

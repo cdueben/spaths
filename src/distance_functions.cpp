@@ -11,6 +11,7 @@
 #endif
 // [[Rcpp::plugins(openmp)]]
 #include <cmath>
+#include <vector>
 
 // Numeric distances with queen case contiguity
 // [[Rcpp::export]]
@@ -27,8 +28,8 @@ Rcpp::NumericVector dists_queen_d(Rcpp::NumericVector &lat1, Rcpp::NumericVector
     
     // Distances between neighboring cells
     double d_vertical = radius2 * std::atan2(yres2, std::sqrt(1.0 - yres3));    // Distance between vertical neighbors
-    double d_horizontal[nrow];                                                  // Intialization of array on distances between horizontal neighbors
-    double d_diagonal[nrow];                                                    // Intialization of array on distances between diagonal neighbors
+    std::vector<double> d_horizontal(nrow);                                     // Intialization of vector on distances between horizontal neighbors
+    std::vector<double> d_diagonal(nrow);                                       // Intialization of vector on distances between diagonal neighbors
     
     // Distance equation components that are constant across iterations
     ymin += 0.5 * yres;                                                         // Centroid latitude of the grid's bottom row
@@ -141,7 +142,7 @@ Rcpp::NumericVector dists_rook_d(Rcpp::NumericVector &lat1, Rcpp::NumericVector 
     
     // Distances between neighboring cells
     double d_vertical = radius2 * std::atan2(yres2, std::sqrt(1.0 - std::pow(yres2, 2))); // Distance between vertical neighbors
-    double d_horizontal[nrow];                                                  // Intialization of array on distances between horizontal neighbors
+    std::vector<double> d_horizontal(nrow);                                     // Intialization of vector on distances between horizontal neighbors
     
     // Distance equation components that are constant across iterations
     ymin += 0.5 * yres;                                                         // Centroid latitude of the grid's bottom row
@@ -241,8 +242,8 @@ Rcpp::IntegerVector dists_queen_i(Rcpp::NumericVector &lat1, Rcpp::NumericVector
     
     // Distances between neighboring cells
     int d_vertical = (int)(radius2 * std::atan2(yres2, std::sqrt(1.0 - yres3)) + 0.5); // Distance between vertical neighbors
-    int d_horizontal[nrow];                                                     // Intialization of array on distances between horizontal neighbors
-    int d_diagonal[nrow];                                                       // Intialization of array on distances between diagonal neighbors
+    std::vector<int> d_horizontal(nrow);                                        // Intialization of array on distances between horizontal neighbors
+    std::vector<int> d_diagonal(nrow);                                          // Intialization of array on distances between diagonal neighbors
     
     // Distance equation components that are constant across iterations
     ymin += 0.5 * yres;                                                         // Centroid latitude of the grid's bottom row
@@ -357,7 +358,7 @@ Rcpp::IntegerVector dists_rook_i(Rcpp::NumericVector &lat1, Rcpp::NumericVector 
     
     // Distances between neighboring cells
     int d_vertical = (int)(radius2 * std::atan2(yres2, std::sqrt(1.0 - std::pow(yres2, 2))) + 0.5); // Distance between vertical neighbors
-    int d_horizontal[nrow];                                                     // Intialization of array on distances between horizontal neighbors
+    std::vector<int> d_horizontal(nrow);                                        // Intialization of array on distances between horizontal neighbors
     
     // Distance equation components that are constant across iterations
     ymin += 0.5 * yres;                                                         // Centroid latitude of the grid's bottom row

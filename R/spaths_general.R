@@ -408,15 +408,12 @@ spaths_general <- function(rst, xres, yres, xmin, ymin, origins, destinations = 
     if(args_used[9L]) tr_fun_args$cl <- cl
     tr_fun_args <- do.call(tr_fun, tr_fun_args[tr_fun_v])
     if(!is.vector(tr_fun_args)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("tr_fun must return a vector")
     }
     if(any(tr_fun_args < 0)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("tr_fun must not return negative values")
     }
     if(length(tr_fun_args) != NROW(rst)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("The number of values returned by tr_fun must equal the number of edges")
     }
     rst <- igraph::set_edge_attr(igraph::graph_from_edgelist(as.matrix(rst), directed = tr_directed), "weight", value = tr_fun_args) # Construct graph

@@ -23,7 +23,7 @@ update_points <- function(v, v_list, crd, nms_specified) {
 }
 
 # Report unconnected origins and destinations
-report_points_unc <- function(o, pl, pairwise = FALSE, dest_specified = TRUE, d = NULL, O = TRUE, both = TRUE, u = NULL) {
+report_points_unc <- function(o, pl, pairwise = FALSE, dest_specified = TRUE, d = NULL, O = TRUE, both = TRUE, u = NULL, update_rst_list = FALSE) {
   if(pairwise) {
     s <- o[pl == 0L]
     sl <- length(s)
@@ -67,7 +67,11 @@ report_points_unc <- function(o, pl, pairwise = FALSE, dest_specified = TRUE, d 
     }
   }
   if(!is.null(u)) {
-    s <- paste0(s, " when updating rst with element ", u, " of update_rst")
+    s <- paste0(s, " when updating rst with ")
+    if(update_rst_list) {
+      s <- paste0(s, "element ", u, " of ")
+    }
+    s <- paste0("update_rst")
   }
   stop(s)
 }

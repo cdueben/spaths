@@ -491,15 +491,12 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
     if(args_used[9L]) tr_fun_args$cl <- cl
     tr_fun_args <- do.call(tr_fun, tr_fun_args[tr_fun_v])
     if(!is.vector(tr_fun_args)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("tr_fun must return a vector")
     }
     if(any(tr_fun_args < 0)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("tr_fun must not return negative values")
     }
     if(length(tr_fun_args) != NROW(rst)) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop("The number of values returned by tr_fun must equal the number of edges")
     }
     rst <- igraph::set_edge_attr(igraph::graph_from_edgelist(as.matrix(rst), directed = tr_directed), "weight", value = tr_fun_args) # Construct graph
@@ -525,16 +522,13 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
     par_lvl <- match(match.arg(par_lvl), c("points", "points_lists", "update_rst"))
     if(par_lvl == 3L) {
       if(!upd_rst_specified) {
-        if(!is.null(cl)) parallel::stopCluster(cl)
         stop('If par_lvl is "update_rst", update_rst must not be NULL')
       }
       if(copy && !update_rst_list) {
-        if(!is.null(cl)) parallel::stopCluster(cl)
         stop('If copy is TRUE and update_rst is not a list, par_lvl = "update_rst" does not induce parallelization')
       }
     }
     if(!origin_list && dest_specified && !dest_list && par_lvl == 2L) {
-      if(!is.null(cl)) parallel::stopCluster(cl)
       stop('If par_lvl is "points_lists", origins or destinations must be a list')
     }
     if(is.null(cl) && nfork) {
@@ -560,7 +554,8 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
       update_rst <- lapply(update_rst, function(V) crd[.(terra::extract(rst_upd, V, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL,
         which = TRUE, on = "c_n"])
     } else {
-      update_rst <- crd[.(terra::extract(rst_upd, update_rst, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL, which = TRUE, on = "c_n"]
+      update_rst <- crd[.(terra::extract(rst_upd, update_rst, cells = TRUE, ID = FALSE, touches = touches)$cell), nomatch = NULL, which = TRUE,
+        on = "c_n"]
     }
     rm(rst_upd)
     crd[, c_n := NULL]
@@ -604,10 +599,18 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   if(length(P_AFFECTED) > 0L) {
                     p_c <- data.table::data.table(origin_c = P2[P_AFFECTED, "origin_c"], destination_c = P2[P_AFFECTED, "destination_c"], pa = P_AFFECTED)
                     if(any(p_c[["origin_c"]] %in% u)) {
-                      report_points_ust(p_c[["origin_c"]], u, TRUE)
+                      if(ncoresg1 && par_lvl > 1L) {
+                        return(NA)
+                      } else {
+                        report_points_ust(p_c[["origin_c"]], u, TRUE)
+                      }
                     }
                     if(any(p_c[["destination_c"]] %in% u)) {
-                      report_points_ust(p_c[["destination_c"]], u, FALSE)
+                      if(ncoresg1 && par_lvl > 1L) {
+                        return(NA)
+                      } else {
+                        report_points_ust(p_c[["destination_c"]], u, FALSE)
+                      }
                     }
                     p_c[, c("origin_c", "destination_c") := list(v[p_c[, "origin_c"], nomatch = NULL, which = TRUE, on = c(c_n_c = "origin_c")],
                       v[p_c[, "destination_c"], nomatch = NULL, which = TRUE, on = c(c_n_c = "destination_c")])]
@@ -617,13 +620,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                     if(ncoresg1 && par_lvl == 1L) {
                       V <- function(dp, oc) {
                         ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
-                        if(min(lengths(ps), na.rm = TRUE) == 0L) {
-                          if(is.null(U)) {
-                            stop("Not all points are connected when updating rst with update_rst")
-                          } else {
-                            stop("Not all points are connected when updating rst with element ", U, " of update_rst")
-                          }
-                        }
+                        if(min(lengths(ps), na.rm = TRUE) == 0L) return(NA)
                         return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
                           use.names = FALSE))
                       }
@@ -646,50 +643,51 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                           origin_n <- c(origin_n[-origin_m], rep.int(origin_n[origin_m], l_p_c))
                           rm(l_p_c, origin_m, n_m)
                           if(nfork) {
-                            P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, V, p_c, origin_n,
-                              USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
+                            P <- parallel::clusterMap(cl, V, p_c, origin_n, USE.NAMES = FALSE)
                           } else {
-                            P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mcmapply(V, p_c, origin_n,
-                              SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                            P <- parallel::mcmapply(V, p_c, origin_n, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
                           }
                         } else {
                           rm(l_p_c)
                           p_c <- split(p_c[[1L]], cut(1:NROW(p_c[[1L]]), ncores, labels = FALSE))
                           if(nfork) {
-                            P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::parLapply(cl, p_c, V, origin_n),
-                              use.names = FALSE)[, c("g", "x", "y")])
+                            P <- parallel::parLapply(cl, p_c, V, origin_n)
                           } else {
-                            P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mclapply(p_c, V, origin_n,
-                              mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                            P <- parallel::mclapply(p_c, V, origin_n, mc.silent = TRUE, mc.cores = ncores)
                           }
                         }
                       } else {
                         if(nfork) {
-                          P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, V, p_c,
-                            ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), USE.NAMES = FALSE, .scheduling = ifelse(l_p_c == ncores,
-                            "static", "dynamic")), use.names = FALSE)[, c("g", "x", "y")])
+                          P <- parallel::clusterMap(cl, V, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), USE.NAMES = FALSE,
+                            .scheduling = ifelse(l_p_c == ncores, "static", "dynamic"))
                         } else {
-                          P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mcmapply(V, p_c, ifelse(origin_n,
-                            as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = l_p_c == ncores,
-                            mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                          P <- parallel::mcmapply(V, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE,
+                            USE.NAMES = FALSE, mc.preschedule = l_p_c == ncores, mc.silent = TRUE, mc.cores = ncores)
                         }
                       }
+                      if(anyNA(P)) report_update_rst(U)
+                      P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(P, use.names = FALSE)[, c("g", "x", "y")])
                       data.table::setorder(P, g)
                       P <- terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs)
                     } else {
-                      P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(mapply(function(dp, oc) {
-                        ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
-                        if(min(lengths(ps), na.rm = TRUE) == 0L) {
-                          if(is.null(U)) {
-                            stop("Not all points are connected when updating rst with update_rst")
-                          } else {
-                            stop("Not all points are connected when updating rst with element ", U, " of update_rst")
-                          }
-                        }
-                        return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
-                          use.names = FALSE))
-                      }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE),
-                        use.names = FALSE)[, c("g", "x", "y")])
+                      if(ncoresg1) {
+                        P <- mapply(function(dp, oc) {
+                          ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
+                          if(min(lengths(ps), na.rm = TRUE) == 0L) return(NA)
+                          return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                            use.names = FALSE))
+                        }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                        if(anyNA(P)) return(NA)
+                        P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(P, use.names = FALSE)[, c("g", "x", "y")])
+                      } else {
+                        P <- rbind(P1[!.(P_AFFECTED), c("g", "x", "y"), on = "g"], data.table::rbindlist(mapply(function(dp, oc) {
+                          ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
+                          if(min(lengths(ps), na.rm = TRUE) == 0L) report_update_rst(U)
+                          return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                            use.names = FALSE))
+                        }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                          use.names = FALSE)[, c("g", "x", "y")])
+                      }
                       data.table::setorder(P, g)
                       if(!ncoresg1 || write_disk) P <- terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs)
                     }
@@ -709,29 +707,39 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   return(P)
                 }
                 if(write_disk) {
-                  if(ncoresg1 && par_lvl == 2L) {
-                    if(nfork) {
-                      parallel::clusterMap(cl, p, p_affected, p1, p2, p3, 1:p_l, USE.NAMES = FALSE, .scheduling = "dynamic")
+                  if(ncoresg1 && par_lvl > 1L) {
+                    if(par_lvl == 2L) {
+                      if(nfork) {
+                        v <- parallel::clusterMap(cl, p, p_affected, p1, p2, p3, 1:p_l, USE.NAMES = FALSE, .scheduling = "dynamic")
+                      } else {
+                        v <- parallel::mcmapply(p, p_affected, p1, p2, p3, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE,
+                          mc.silent = TRUE, mc.cores = ncores)
+                      }
+                      if(anyNA(v)) report_update_rst(U)
                     } else {
-                      parallel::mcmapply(p, p_affected, p1, p2, p3, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
-                        mc.cores = ncores)
+                      v <- mapply(p, p_affected, p1, p2, p3, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                      if(anyNA(v)) return(NA)
                     }
                   } else {
                     mapply(p, p_affected, p1, p2, p3, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE)
                   }
                   v <- NULL
                 } else {
-                  if(ncoresg1 && par_lvl == 2L) {
-                    if(nfork) {
-                      v <- parallel::clusterMap(cl, p, p_affected, p1, p2, USE.NAMES = FALSE, .scheduling = "dynamic")
+                  if(ncoresg1 && par_lvl > 1L) {
+                    if(par_lvl == 2L) {
+                      if(nfork) {
+                        v <- parallel::clusterMap(cl, p, p_affected, p1, p2, USE.NAMES = FALSE, .scheduling = "dynamic")
+                      } else {
+                        v <- parallel::mcmapply(p, p_affected, p1, p2, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
+                          mc.cores = ncores)
+                      }
+                      if(anyNA(v)) report_update_rst(U)
+                      v <- mapply(function(P, P3) terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs), v, p3, SIMPLIFY = FALSE,
+                        USE.NAMES = FALSE)
                     } else {
-                      v <- parallel::mcmapply(p, p_affected, p1, p2, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
-                        mc.cores = ncores)
+                      v <- mapply(p, p_affected, p1, p2, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                      if(anyNA(v)) return(NA)
                     }
-                    v <- mapply(function(P, P3) terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs), v, p3, SIMPLIFY = FALSE,
-                      USE.NAMES = FALSE)
-                  } else if(ncoresg1 && par_lvl == 3L) {
-                    v <- mapply(p, p_affected, p1, p2, SIMPLIFY = FALSE, USE.NAMES = FALSE)
                   } else {
                     v <- mapply(p, p_affected, p1, p2, p3, SIMPLIFY = FALSE, USE.NAMES = FALSE)
                   }
@@ -768,10 +776,12 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
               if(ncoresg1 && par_lvl == 3L) {
                 if(write_disk) {
                   if(nfork) {
-                    parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
+                    paths <- parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
                   } else {
-                    parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
+                    paths <- parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE,
+                      mc.cores = ncores)
                   }
+                  if(anyNA(paths)) report_update_rst(which(is.na(paths)))
                   paths <- NULL
                 } else {
                   if(nfork) {
@@ -783,6 +793,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                       mc.cores = ncores))
                   }
                   rm(p1, p2, update_rst)
+                  if(anyNA(paths)) report_update_rst(which(is.na(paths)) - 1L)
                   paths <- lapply(paths, function(p) mapply(function(P, P3) terra::vect(as.matrix(P), type = "line", atts = P3, crs = r_crs), p, p3,
                     SIMPLIFY = FALSE, USE.NAMES = FALSE))
                 }
@@ -815,10 +826,18 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
               if(length(p_affected) > 0L) {
                 p_c <- data.table::data.table(origin_c = p2[p_affected, "origin_c"], destination_c = p2[p_affected, "destination_c"], pa = p_affected)
                 if(any(p_c[["origin_c"]] %in% u)) {
-                  report_points_ust(p_c[["origin_c"]], u, TRUE)
+                  if(ncoresg1 && par_lvl == 3L) {
+                    return(NA)
+                  } else {
+                    report_points_ust(p_c[["origin_c"]], u, TRUE)
+                  }
                 }
                 if(any(p_c[["destination_c"]] %in% u)) {
-                  report_points_ust(p_c[["destination_c"]], u, FALSE)
+                  if(ncoresg1 && par_lvl == 3L) {
+                    return(NA)
+                  } else {
+                    report_points_ust(p_c[["destination_c"]], u, FALSE)
+                  }
                 }
                 v <- data.table::data.table(c_n_c = 1:NROW(crd))[-u,]
                 data.table::setkey(v, c_n_c)
@@ -831,13 +850,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                 if(ncoresg1 && par_lvl == 1L) {
                   V <- function(dp, oc) {
                     ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
-                    if(min(lengths(ps), na.rm = TRUE) == 0L) {
-                      if(is.null(U)) {
-                        stop("Not all points are connected when updating rst with update_rst")
-                      } else {
-                        stop("Not all points are connected when updating rst with element ", U, " of update_rst")
-                      }
-                    }
+                    if(min(lengths(ps), na.rm = TRUE) == 0L) return(NA)
                     return(data.table::rbindlist(mapply(function(pd, pa) v[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
                       use.names = FALSE))
                   }
@@ -860,48 +873,49 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                       origin_n <- c(origin_n[-origin_m], rep.int(origin_n[origin_m], l_p_c))
                       rm(l_p_c, origin_m, n_m)
                       if(nfork) {
-                        v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, V, p_c, origin_n,
-                          USE.NAMES = FALSE), use.names = FALSE)[, c("g", "x", "y")])
+                        v <- parallel::clusterMap(cl, V, p_c, origin_n, USE.NAMES = FALSE)
                       } else {
-                        v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mcmapply(V, p_c, origin_n,
-                          SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                        v <- parallel::mcmapply(V, p_c, origin_n, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
                       }
                     } else {
                       rm(l_p_c)
                       p_c <- split(p_c[[1L]], cut(1:NROW(p_c[[1L]]), ncores, labels = FALSE))
                       if(nfork) {
-                        v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::parLapply(cl, p_c, V, origin_n),
-                          use.names = FALSE)[, c("g", "x", "y")])
+                        v <- parallel::parLapply(cl, p_c, V, origin_n)
                       } else {
-                        v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mclapply(p_c, V, origin_n,
-                          mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                        v <- parallel::mclapply(p_c, V, origin_n, mc.silent = TRUE, mc.cores = ncores)
                       }
                     }
                   } else {
                     if(nfork) {
-                      v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::clusterMap(cl, V, p_c,
-                        ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), USE.NAMES = FALSE, .scheduling = ifelse(l_p_c == ncores,
-                        "static", "dynamic")), use.names = FALSE)[, c("g", "x", "y")])
+                      v <- parallel::clusterMap(cl, V, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), USE.NAMES = FALSE,
+                        .scheduling = ifelse(l_p_c == ncores, "static", "dynamic"))
                     } else {
-                      v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(parallel::mcmapply(V, p_c, ifelse(origin_n,
-                        as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = l_p_c == ncores,
-                        mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("g", "x", "y")])
+                      v <- parallel::mcmapply(V, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE,
+                        USE.NAMES = FALSE, mc.preschedule = l_p_c == ncores, mc.silent = TRUE, mc.cores = ncores)
                     }
                   }
+                  if(anyNA(v)) report_update_rst(U)
+                  v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(v, use.names = FALSE)[, c("g", "x", "y")])
                 } else {
-                  v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(mapply(function(dp, oc) {
-                    ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
-                    if(min(lengths(ps), na.rm = TRUE) == 0L) {
-                      if(is.null(U)) {
-                        stop("Not all points are connected when updating rst with update_rst")
-                      } else {
-                        stop("Not all points are connected when updating rst with element ", U, " of update_rst")
-                      }
-                    }
-                    return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
-                      use.names = FALSE))
-                  }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE),
-                    use.names = FALSE)[, c("g", "x", "y")])
+                  if(ncoresg1) {
+                    v <- mapply(function(dp, oc) {
+                      ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
+                      if(min(lengths(ps), na.rm = TRUE) == 0L) return(NA)
+                      return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                        use.names = FALSE))
+                    }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                    if(anyNA(v)) return(NA)
+                    v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(v, use.names = FALSE)[, c("g", "x", "y")])
+                  } else {
+                    v <- rbind(p1[!.(p_affected), c("g", "x", "y"), on = "g"], data.table::rbindlist(mapply(function(dp, oc) {
+                      ps <- igraph::shortest_paths(rst_u, oc, dp[["destination_c"]], output = "vpath", algorithm = "dijkstra")$vpath
+                      if(min(lengths(ps), na.rm = TRUE) == 0L) report_update_rst(U)
+                      return(data.table::rbindlist(mapply(function(pd, pa) P[pd,][, g := pa], ps, dp[["pa"]], SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                        use.names = FALSE))
+                    }, p_c, ifelse(origin_n, as.integer(names(p_c)), as.numeric(names(p_c))), SIMPLIFY = FALSE, USE.NAMES = FALSE),
+                      use.names = FALSE)[, c("g", "x", "y")])
+                  }
                 }
                 data.table::setorder(v, g)
                 if(write_disk) {
@@ -926,10 +940,12 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
               if(ncoresg1 && par_lvl == 3L) {
                 if(write_disk) {
                   if(nfork) {
-                    parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
+                    paths <- parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
                   } else {
-                    parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
+                    paths <- parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE,
+                      mc.cores = ncores)
                   }
+                  if(anyNA(paths)) report_update_rst(which(is.na(paths)))
                   paths <- NULL
                 } else {
                   if(nfork) {
@@ -940,6 +956,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                     paths <- c(list(p1[, c("g", "x", "y")]), parallel::mclapply(update_rst, paths, mc.silent = TRUE, mc.cores = ncores))
                   }
                   rm(p1, p2, update_rst)
+                  if(anyNA(paths)) report_update_rst(which(is.na(paths)) - 1L)
                   paths <- lapply(paths, function(p) terra::vect(as.matrix(p), type = "line", atts = p3, crs = r_crs))
                 }
               } else {
@@ -979,17 +996,6 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                 v <- data.table::data.table(c_n_c = 1:crd)[-u,]
                 p <- function(P_AFFECTED, P1, I = NULL) {
                   if(length(P_AFFECTED) > 0L) {
-                    origin_c <- P1[P_AFFECTED, "origin_c"][["origin_c"]]
-                    destination_c <- P1[P_AFFECTED, "destination_c"][["destination_c"]]
-                    if(any(origin_c %in% u)) {
-                      report_points_ust(origin_c, u, TRUE)
-                    }
-                    if(any(destination_c %in% u)) {
-                      report_points_ust(destination_c, u, FALSE)
-                    }
-                    origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
-                    destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
-                    P <- data.table::copy(P1[, c("origin", "destination", "distance")])
                     if(ncoresg1 && par_lvl == 1L) {
                       p_c <- data.table::data.table(origin_c = P1[P_AFFECTED, "origin_c"][["origin_c"]], destination_c = P1[P_AFFECTED,
                         "destination_c"][["destination_c"]])
@@ -1002,7 +1008,7 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                       p_c[, c("origin_c", "destination_c", "p_affected") := list(v[p_c[, "origin_c"], nomatch = NULL, which = TRUE,
                         on = c(c_n_c = "origin_c")], v[p_c[, "destination_c"], nomatch = NULL, which = TRUE, on = c(c_n_c = "destination_c")],
                         P_AFFECTED)]
-                      P <- data.table::copy(p1[, c("origin", "destination", "distance")])
+                      P <- data.table::copy(P1[, c("origin", "destination", "distance")])
                       n_o <- data.table::uniqueN(p_c[["origin_c"]])
                       n_d <- data.table::uniqueN(p_c[["destination_c"]])
                       l_o <- n_o > n_d
@@ -1073,17 +1079,25 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                       if(unconnected_error && is.infinite(max(p_c, na.rm = TRUE))) {
                         P <- P[P[P_AFFECTED[which.max(p_c)], "origin"], nomatch = NULL, on = "origin"]
                         report_points_unc(P[1L, "origin"][["origin"]], as.integer(is.finite(P[["distance"]])), dest_specified = dest_specified,
-                          d = P[["destination"]], u = U)
+                          d = P[["destination"]], u = U, update_rst_list = update_rst_list)
                       }
                       rm(V, p_c)
                     } else {
                       origin_c <- P1[P_AFFECTED, "origin_c"][["origin_c"]]
                       destination_c <- P1[P_AFFECTED, "destination_c"][["destination_c"]]
                       if(any(origin_c %in% u)) {
-                        report_points_ust(origin_c, u, TRUE)
+                        if(ncoresg1) {
+                          return(NA)
+                        } else {
+                          report_points_ust(origin_c, u, TRUE)
+                        }
                       }
                       if(any(destination_c %in% u)) {
-                        report_points_ust(destination_c, u, FALSE)
+                        if(ncoresg1) {
+                          return(NA)
+                        } else {
+                          report_points_ust(destination_c, u, FALSE)
+                        }
                       }
                       origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
                       destination_c <- v[.(destination_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
@@ -1096,9 +1110,13 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                         algorithm = "dijkstra")[origin_c]
                       P[P_AFFECTED, distance := origin_c]
                       if(unconnected_error && is.infinite(max(origin_c, na.rm = TRUE))) {
-                        P <- P[P[P_AFFECTED[which.max(origin_c)], "origin"], nomatch = NULL, on = "origin"]
-                        report_points_unc(P[1L, "origin"][["origin"]], as.integer(is.finite(P[["distance"]])), dest_specified = dest_specified,
-                          d = P[["destination"]], u = U)
+                        if(ncoresg1) {
+                          return(NaN)
+                        } else {
+                          P <- P[P[P_AFFECTED[which.max(origin_c)], "origin"], nomatch = NULL, on = "origin"]
+                          report_points_unc(P[1L, "origin"][["origin"]], as.integer(is.finite(P[["distance"]])), dest_specified = dest_specified,
+                            d = P[["destination"]], u = U, update_rst_list = update_rst_list)
+                        }
                       }
                       rm(origin_u, destination_u, origin_c)
                     }
@@ -1129,9 +1147,9 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                 if(ncoresg1 && par_lvl == 2L) {
                   if(write_disk) {
                     if(nfork) {
-                      parallel::clusterMap(cl, p, p_affected, p1, 1:p_l, USE.NAMES = FALSE, .scheduling = "dynamic")
+                      v <- parallel::clusterMap(cl, p, p_affected, p1, 1:p_l, USE.NAMES = FALSE, .scheduling = "dynamic")
                     } else {
-                      parallel::mcmapply(p, p_affected, p1, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
+                      v <- parallel::mcmapply(p, p_affected, p1, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.preschedule = FALSE, mc.silent = TRUE,
                         mc.cores = ncores)
                     }
                   } else {
@@ -1142,11 +1160,25 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                         mc.cores = ncores)
                     }
                   }
+                  if(anyNA(v)) {
+                    if(unconnected_error && all(vapply(v[is.na(v)], is.nan, logical(1L), USE.NAMES = FALSE))) {
+                      report_update_rst(U)
+                    } else {
+                      stop("update_rst masks the cells of origin or destination points")
+                    }
+                  }
                 } else {
                   if(write_disk) {
-                    mapply(p, p_affected, p1, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                    v <- mapply(p, p_affected, p1, 1:p_l, SIMPLIFY = FALSE, USE.NAMES = FALSE)
                   } else {
                     v <- mapply(p, p_affected, p1, SIMPLIFY = FALSE, USE.NAMES = FALSE)
+                  }
+                  if(ncoresg1 && par_lvl == 3L && anyNA(v)) {
+                    if(unconnected_error && all(vapply(v[is.na(v)], is.nan, logical(1L), USE.NAMES = FALSE))) {
+                      return(NaN)
+                    } else {
+                      return(NA)
+                    }
                   }
                 }
               } else {
@@ -1181,9 +1213,10 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
               if(ncoresg1 && par_lvl == 3L) {
                 if(write_disk) {
                   if(nfork) {
-                    parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
+                    paths <- parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
                   } else {
-                    parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
+                    paths <- parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE,
+                      mc.cores = ncores)
                   }
                 } else {
                   if(nfork) {
@@ -1191,6 +1224,21 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   } else {
                     paths <- c(list(lapply(p1, function(p) p[, c("origin", "destination", "distance")])), parallel::mclapply(update_rst, paths,
                       mc.silent = TRUE, mc.cores = ncores))
+                  }
+                }
+                if(anyNA(paths)) {
+                  if(unconnected_error && all(vapply(paths[is.na(paths)], is.nan, logical(1L), USE.NAMES = FALSE))) {
+                    if(write_disk) {
+                      report_update_rst(which(is.na(paths)))
+                    } else {
+                      report_update_rst(which(is.na(paths)) - 1L)
+                    }
+                  } else {
+                    if(write_disk) {
+                      report_update_m(which(is.na(paths)))
+                    } else {
+                      report_update_m(which(is.na(paths)) - 1L)
+                    }
                   }
                 }
               } else {
@@ -1305,17 +1353,25 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   if(unconnected_error && is.infinite(max(p_c, na.rm = TRUE))) {
                     v <- v[v[p_affected[which.max(p_c)], "origin"], nomatch = NULL, on = "origin"]
                     report_points_unc(v[1L, "origin"][["origin"]], as.integer(is.finite(v[["distance"]])), dest_specified = dest_specified,
-                      d = v[["destination"]], u = U)
+                      d = v[["destination"]], u = U, update_rst_list = update_rst_list)
                   }
                   rm(p_affected, p_c)
                 } else {
                   origin_c <- p1[p_affected, "origin_c"][["origin_c"]]
                   destination_c <- p1[p_affected, "destination_c"][["destination_c"]]
                   if(any(origin_c %in% u)) {
-                    report_points_ust(origin_c, u, TRUE)
+                    if(ncoresg1) {
+                      return(NA)
+                    } else {
+                      report_points_ust(origin_c, u, TRUE)
+                    }
                   }
                   if(any(destination_c %in% u)) {
-                    report_points_ust(destination_c, u, FALSE)
+                    if(ncoresg1) {
+                      return(NA)
+                    } else {
+                      report_points_ust(destination_c, u, FALSE)
+                    }
                   }
                   v <- data.table::data.table(c_n_c = 1:crd)[-u,]
                   origin_c <- v[.(origin_c), nomatch = NULL, which = TRUE, on = "c_n_c"]
@@ -1328,9 +1384,13 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   origin_c <- igraph::distances(igraph::delete_vertices(rst, u), origin_u, destination_u, mode = "out", algorithm = "dijkstra")[origin_c]
                   v[p_affected, distance := origin_c]
                   if(unconnected_error && is.infinite(max(origin_c, na.rm = TRUE))) {
-                    v <- v[v[p_affected[which.max(origin_c)], "origin"], nomatch = NULL, on = "origin"]
-                    report_points_unc(v[1L, "origin"][["origin"]], as.integer(is.finite(v[["distance"]])), dest_specified = dest_specified,
-                      d = v[["destination"]], u = U)
+                    if(ncoresg1) {
+                      return(NaN)
+                    } else {
+                      v <- v[v[p_affected[which.max(origin_c)], "origin"], nomatch = NULL, on = "origin"]
+                      report_points_unc(v[1L, "origin"][["origin"]], as.integer(is.finite(v[["distance"]])), dest_specified = dest_specified,
+                        d = v[["destination"]], u = U, update_rst_list = update_rst_list)
+                    }
                   }
                   rm(p_affected, origin_u, destination_u, origin_c)
                 }
@@ -1361,9 +1421,10 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
               if(ncoresg1 && par_lvl == 3L) {
                 if(write_disk) {
                   if(nfork) {
-                    parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
+                    paths <- parallel::clusterMap(cl, paths, update_rst, 1:length(update_rst), USE.NAMES = FALSE)
                   } else {
-                    parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE, mc.cores = ncores)
+                    paths <- parallel::mcmapply(paths, update_rst, 1:length(update_rst), SIMPLIFY = FALSE, USE.NAMES = FALSE, mc.silent = TRUE,
+                      mc.cores = ncores)
                   }
                 } else {
                   if(nfork) {
@@ -1371,6 +1432,21 @@ spaths_earth <- function(rst, origins, destinations = NULL, output = c("lines", 
                   } else {
                     paths <- c(list(p1[, c("origin", "destination", "distance")]), parallel::mclapply(paths, update_rst, mc.silent = TRUE,
                       mc.cores = ncores))
+                  }
+                }
+                if(anyNA(paths)) {
+                  if(unconnected_error && all(vapply(paths[is.na(paths)], is.nan, logical(1L), USE.NAMES = FALSE))) {
+                    if(write_disk) {
+                      report_update_rst(which(is.na(paths)))
+                    } else {
+                      report_update_rst(which(is.na(paths)) - 1L)
+                    }
+                  } else {
+                    if(write_disk) {
+                      report_update_m(which(is.na(paths)))
+                    } else {
+                      report_update_m(which(is.na(paths)) - 1L)
+                    }
                   }
                 }
               } else {
