@@ -272,17 +272,17 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             p <- function(O) {
               s <- lapply(O, function(o) igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS[o], output = "vpath", algorithm = "dijkstra")$vpath[[1L]])
               pl <- lengths(s)
-              if(min(pl, na.rm = TRUE) == 0L) report_points_unc(O, pl, TRUE)
+              if(min(pl, na.rm = TRUE) == 0L) return(NA)
               return(data.table::data.table(g = rep.int(O, pl), cls = do.call(c, s)))
             }
             if(nfork) {
-              p <- list(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p),
+              p <- list(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p), TRUE),
                 use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = ORIGINS, destination_c = DESTINATIONS),
                 data.frame(origin = on, destination = dn))
             } else {
-              p <- list(data.table::rbindlist(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p, mc.silent = TRUE,
-                mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = ORIGINS,
-                destination_c = DESTINATIONS), data.frame(origin = on, destination = dn))
+              p <- list(data.table::rbindlist(report_na(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p,
+                mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")],
+                data.frame(origin_c = ORIGINS, destination_c = DESTINATIONS), data.frame(origin = on, destination = dn))
             }
           } else {
             p <- list(data.table::rbindlist(lapply(1:os_length, function(O) {
@@ -297,16 +297,16 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             p <- function(O) {
               s <- lapply(O, function(o) igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS[o], output = "vpath", algorithm = "dijkstra")$vpath[[1L]])
               pl <- lengths(s)
-              if(min(pl, na.rm = TRUE) == 0L) report_points_unc(O, pl, TRUE)
+              if(min(pl, na.rm = TRUE) == 0L) return(NA)
               return(data.table::data.table(g = rep.int(O, pl), cls = do.call(c, s)))
             }
             if(nfork) {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p),
-                use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = on, destination = dn),
-                crs = r_crs)
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores,
+                labels = FALSE)), p), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = on,
+                destination = dn), crs = r_crs)
             } else {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p,
-                mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)),
+                p, mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
                 atts = data.frame(origin = on, destination = dn), crs = r_crs)
             }
           } else if(nvect) {
@@ -331,20 +331,20 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
                 s <- igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS, output = "vpath", algorithm = "dijkstra")$vpath
                 o1 <- (o - 1L) * ds_length
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(o, pl)
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 return(data.table::data.table(g = o1 + rep.int(1:ds_length, pl), cls = do.call(c, s)))
               }), use.names = FALSE))
             }
             if(nfork) {
-              p <- list(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p),
+              p <- list(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p), TRUE),
                 use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = rep.int(ORIGINS, rep.int(ds_length,
                 os_length)), destination_c = rep.int(DESTINATIONS, os_length)), data.frame(origin = rep.int(on, rep.int(ds_length, os_length)),
                 destination = rep.int(dn, os_length)))
             } else {
-              p <- list(data.table::rbindlist(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p, mc.silent = TRUE,
-                mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = rep.int(ORIGINS,
-                rep.int(ds_length, os_length)), destination_c = rep.int(DESTINATIONS, os_length)), data.frame(origin = rep.int(on, rep.int(ds_length,
-                os_length)), destination = rep.int(dn, os_length)))
+              p <- list(data.table::rbindlist(report_na(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p,
+                mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")],
+                data.frame(origin_c = rep.int(ORIGINS, rep.int(ds_length, os_length)), destination_c = rep.int(DESTINATIONS, os_length)),
+                data.frame(origin = rep.int(on, rep.int(ds_length, os_length)), destination = rep.int(dn, os_length)))
             }
           } else {
             p <- list(data.table::rbindlist(lapply(1:os_length, function(O) {
@@ -363,17 +363,17 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
                 s <- igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS, output = "vpath", algorithm = "dijkstra")$vpath
                 o1 <- (o - 1L) * ds_length
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(o, pl)
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 return(data.table::data.table(g = o1 + rep.int(1:ds_length, pl), cls = do.call(c, s)))
               }), use.names = FALSE))
             }
             if(nfork) {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)),
-                p), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = rep.int(on,
-                rep.int(ds_length, os_length)), destination = rep.int(dn, os_length)), crs = r_crs)
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores,
+                labels = FALSE)), p), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+                atts = data.frame(origin = rep.int(on, rep.int(ds_length, os_length)), destination = rep.int(dn, os_length)), crs = r_crs)
             } else {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p,
-                mc.silent = TRUE, mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)),
+                p, mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
                 atts = data.frame(origin = rep.int(on, rep.int(ds_length, os_length)), destination = rep.int(dn, os_length)), crs = r_crs)
             }
           } else if(nvect) {
@@ -403,17 +403,19 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             p <- function(O) {
               s <- lapply(O, function(o) {
                 S <- igraph::shortest_paths(rst, ORIGINS[o], DESTINATIONS[o], output = "both", algorithm = "dijkstra")
-                if(length(S$vpath[[1L]]) == 0L) stop("Origin ", o, " is not connected to its respective destination")
+                if(length(S$vpath[[1L]]) == 0L) return(NA)
                 return(list(sum(igraph::edge_attr(rst, "weight", S$epath[[1L]])), S$vpath[[1L]]))
               })
-              return(list(vapply(s, `[[`, 1L, numeric(1L), USE.NAMES = FALSE), data.table::data.table(g = rep.int(O, sapply(s, function(o) length(o[[2L]]),
-                USE.NAMES = FALSE)), cls = do.call(c, lapply(s, `[[`, 2L)))))
+              if(anyNA(s)) return(NA)
+              return(list(vapply(s, `[[`, 1L, numeric(1L), USE.NAMES = FALSE), data.table::data.table(g = rep.int(O, sapply(s,
+                function(o) length(o[[2L]]), USE.NAMES = FALSE)), cls = do.call(c, lapply(s, `[[`, 2L)))))
             }
             if(nfork) {
               p <- parallel::parLapply(cl, split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p)
             } else {
               p <- parallel::mclapply(split(1:os_length, cut(1:os_length, ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores)
             }
+            if(anyNA(p)) stop("Not all origins are connected to their respective destinations")
             p <- list(data.table::data.table(origin = on, origin_c = ORIGINS, destination = dn, destination_c = DESTINATIONS, distance = do.call(c,
               lapply(p, `[[`, 1L))), data.table::rbindlist(lapply(p, `[[`, 2L), use.names = FALSE))
           } else {
@@ -430,15 +432,15 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
           if(NCORESG1) {
             p <- function(O) {
               s <- diag(igraph::distances(rst, ORIGINS[O], DESTINATIONS[O], mode = "out", algorithm = "dijkstra"), names = FALSE)
-              if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) report_points_unc(O, as.integer(is.finite(s)), TRUE)
+              if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) return(NA)
               return(s)
             }
             if(nfork) {
-              p <- data.table::data.table(origin = on, destination = dn, distance = do.call(c, parallel::parLapply(cl, split(1:os_length, cut(1:os_length,
-                ncores, labels = FALSE)), p)))
+              p <- data.table::data.table(origin = on, destination = dn, distance = do.call(c, report_na(parallel::parLapply(cl, split(1:os_length,
+                cut(1:os_length, ncores, labels = FALSE)), p), unconnected_error)))
             } else {
-              p <- data.table::data.table(origin = on, destination = dn, distance = do.call(c, parallel::mclapply(split(1:os_length, cut(1:os_length,
-                ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores)))
+              p <- data.table::data.table(origin = on, destination = dn, distance = do.call(c, report_na(parallel::mclapply(split(1:os_length, cut(1:os_length,
+                ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores), unconnected_error)))
             }
           } else {
             p <- data.table::data.table(origin = on, destination = dn, distance = diag(igraph::distances(rst, ORIGINS, DESTINATIONS, mode = "out",
@@ -454,9 +456,10 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             p <- function(O) {
               P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, o, DESTINATIONS, output = "both", algorithm = "dijkstra")
-                if(min(lengths(s$vpath), na.rm = TRUE) == 0L) report_points_unc(NULL, lengths(s$vpath), both = FALSE)
+                if(min(lengths(s$vpath), na.rm = TRUE) == 0L) return(NA)
                 return(list(vapply(s$epath, function(S) sum(igraph::edge_attr(rst, "weight", S)), numeric(1L), USE.NAMES = FALSE), s$vpath))
               })
+              if(anyNA(P)) return(NA)
               return(list(do.call(c, lapply(P, `[[`, 1L)), do.call(c, lapply(P, `[[`, 2L))))
             }
             if(nfork) {
@@ -464,6 +467,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             } else {
               p <- parallel::mclapply(split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores)
             }
+            if(anyNA(p)) stop("Not all origins are connected to their respective destinations")
             p <- list(data.table::data.table(origin = rep(on, each = ds_length), origin_c = rep(ORIGINS, each = ds_length), destination = rep.int(dn,
               os_length), destination_c = rep.int(DESTINATIONS, os_length), distance = do.call(c, lapply(p, `[[`, 1L))), do.call(c, lapply(p, `[[`, 2L)))
             p[[2L]] <- data.table::data.table(g = rep.int(1:(os_length * ds_length), lengths(p[[2L]])), cls = do.call(c, p[[2L]]))
@@ -487,32 +491,28 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
             if(os_length >= ncores || os_length > ds_length) {
               p <- function(O) {
                 s <- igraph::distances(rst, O, DESTINATIONS, mode = "out", algorithm = "dijkstra")
-                if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) {
-                  report_points_unc(NULL, as.integer(is.finite(s[min(which(is.infinite(s)) %% length(O), na.rm = TRUE) + 1L,])), both = FALSE)
-                }
+                if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) return(NA)
                 return(data.table::as.data.table(s, na.rm = FALSE))
               }
               if(nfork) {
-                p <- data.table::rbindlist(parallel::parLapply(cl, split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p), use.names = FALSE)
+                p <- data.table::rbindlist(report_na(parallel::parLapply(cl, split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p),
+                  unconnected_error), use.names = FALSE)
               } else {
-                p <- data.table::rbindlist(parallel::mclapply(split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p, mc.silent = TRUE,
-                  mc.cores = ncores), use.names = FALSE)
+                p <- data.table::rbindlist(report_na(parallel::mclapply(split(ORIGINS, cut(seq_along(ORIGINS), ncores, labels = FALSE)), p,
+                  mc.silent = TRUE, mc.cores = ncores), unconnected_error), use.names = FALSE)
               }
             } else {
               p <- function(D) {
                 s <- igraph::distances(rst, ORIGINS, D, mode = "out", algorithm = "dijkstra")
-                if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) {
-                  report_points_unc(NULL, as.integer(is.finite(s[, ceiling(min(which(is.infinite(s)) / os_length, na.rm = TRUE))])), O = FALSE,
-                    both = FALSE)
-                }
+                if(unconnected_error && is.infinite(max(s, na.rm = TRUE))) return(NA)
                 return(s)
               }
               if(nfork) {
-                p <- data.table::as.data.table(do.call(cbind, parallel::parLapply(cl, split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores,
-                  labels = FALSE)), p)), na.rm = FALSE)
+                p <- data.table::as.data.table(do.call(cbind, report_na(parallel::parLapply(cl, split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores,
+                  labels = FALSE)), p), unconnected_error)), na.rm = FALSE)
               } else {
-                p <- data.table::as.data.table(do.call(cbind, parallel::mclapply(split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores,
-                  labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores)), na.rm = FALSE)
+                p <- data.table::as.data.table(do.call(cbind, report_na(parallel::mclapply(split(DESTINATIONS, cut(seq_along(DESTINATIONS), ncores,
+                  labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores), unconnected_error)), na.rm = FALSE)
               }
             }
           } else {
@@ -549,42 +549,47 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
         if(NCORESG1) {
           if(tr_directed) {
             p <- function(O) {
-              return(data.table::rbindlist(lapply(O, function(o) {
+              P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[-o], output = "vpath", algorithm = "dijkstra")$vpath
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (1:os_length)[-o])
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 return(data.table::data.table(g = (o - 1L) * o1 + rep.int(1:o1, pl), cls = do.call(c, s)))
-              }), use.names = FALSE))
+              })
+              if(anyNA(P)) return(NA)
+              return(data.table::rbindlist(P, use.names = FALSE))
             }
             if(nfork) {
-              p <- list(data.table::rbindlist(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), use.names = FALSE)[, c("x",
-                "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = rep(ORIGINS, each = o1), destination_c = rep.int(ORIGINS,
-                os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]), data.frame(origin = rep(on, each = o1), destination = rep.int(on,
-                os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]))
-            } else {
-              p <- list(data.table::rbindlist(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores),
+              p <- list(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), TRUE),
                 use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = rep(ORIGINS, each = o1),
                 destination_c = rep.int(ORIGINS, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]), data.frame(origin = rep(on,
                 each = o1), destination = rep.int(on, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]))
+            } else {
+              p <- list(data.table::rbindlist(report_na(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE,
+                mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], data.frame(origin_c = rep(ORIGINS,
+                each = o1), destination_c = rep.int(ORIGINS, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]),
+                data.frame(origin = rep(on, each = o1), destination = rep.int(on, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]))
             }
           } else {
             p <- function(O) {
-              return(data.table::rbindlist(lapply(O, function(o) {
+              P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[(o + 1L):os_length], output = "vpath", algorithm = "dijkstra")$vpath
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (o + 1L):os_length)
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 i <- os_length - o
                 return(data.table::data.table(g = sum(o1:i) - i + rep.int(1:i, pl), cls = do.call(c, s)))
-              }), use.names = FALSE))
+              })
+              if(anyNA(P)) return(NA)
+              return(data.table::rbindlist(P, use.names = FALSE))
             }
             if(nfork) {
-              p <- list(data.table::rbindlist(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), use.names = FALSE)[, c("x",
-                "y") := crd[cls,]][, c("g", "x", "y", "cls")], stats::setNames(as.data.frame(t(utils::combn(ORIGINS, 2L))), c("origin_c",
-                "destination_c")), stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")))
-            } else {
-              p <- list(data.table::rbindlist(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores),
+              p <- list(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), TRUE),
                 use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")], stats::setNames(as.data.frame(t(utils::combn(ORIGINS, 2L))),
                 c("origin_c", "destination_c")), stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")))
+            } else {
+              p <- list(data.table::rbindlist(report_na(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE,
+                mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, c("g", "x", "y", "cls")],
+                stats::setNames(as.data.frame(t(utils::combn(ORIGINS, 2L))), c("origin_c", "destination_c")),
+                stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")))
             }
           }
         } else {
@@ -612,39 +617,44 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
         if(NCORESG1) {
           if(tr_directed) {
             p <- function(O) {
-              return(data.table::rbindlist(lapply(O, function(o) {
+              P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[-o], output = "vpath", algorithm = "dijkstra")$vpath
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (1:os_length)[-o])
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 return(data.table::data.table(g = (o - 1L) * o1 + rep.int(1:o1, pl), cls = do.call(c, s)))
-              }), use.names = FALSE))
+              })
+              if(anyNA(P)) return(NA)
+              return(data.table::rbindlist(P, use.names = FALSE))
             }
             if(nfork) {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p),
-                use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = rep(on, each = o1),
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p),
+                TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = rep(on, each = o1),
                 destination = rep.int(on, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]), crs = r_crs)
             } else {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE,
-                mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = data.frame(origin = rep(on,
-                each = o1), destination = rep.int(on, os_length)[-seq.int(1L, by = os_length + 1L, length.out = os_length)]), crs = r_crs)
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p,
+                mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+                atts = data.frame(origin = rep(on, each = o1), destination = rep.int(on, os_length)[-seq.int(1L, by = os_length + 1L,
+                length.out = os_length)]), crs = r_crs)
             }
           } else {
             p <- function(O) {
-              return(data.table::rbindlist(lapply(O, function(o) {
+              P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[(o + 1L):os_length], output = "vpath", algorithm = "dijkstra")$vpath
                 pl <- lengths(s)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (o + 1L):os_length)
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 i <- os_length - o
                 return(data.table::data.table(g = sum(o1:i) - i + rep.int(1:i, pl), cls = do.call(c, s)))
-              }), use.names = FALSE))
+              })
+              if(anyNA(P)) return(NA)
+              return(data.table::rbindlist(P, use.names = FALSE))
             }
             if(nfork) {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p),
-                use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line", atts = stats::setNames(as.data.frame(t(utils::combn(on,
-                2L))), c("origin", "destination")), crs = r_crs)
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p),
+                TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+                atts = stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")), crs = r_crs)
             } else {
-              p <- terra::vect(as.matrix(data.table::rbindlist(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE,
-                mc.cores = ncores), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
+              p <- terra::vect(as.matrix(data.table::rbindlist(report_na(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p,
+                mc.silent = TRUE, mc.cores = ncores), TRUE), use.names = FALSE)[, c("x", "y") := crd[cls,]][, cls := NULL]), type = "line",
                 atts = stats::setNames(as.data.frame(t(utils::combn(on, 2L))), c("origin", "destination")), crs = r_crs)
             }
           }
@@ -696,11 +706,12 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[-o], output = "both", algorithm = "dijkstra")
                 pl <- lengths(s$vpath)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (1:os_length)[-o])
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 return(list(data.table::data.table(origin = on[o], origin_c = ORIGINS[o], destination = on[-o], destination_c = ORIGINS[-o],
                   distance = vapply(s$epath, function(S) sum(igraph::edge_attr(rst, "weight", S)), numeric(1L), USE.NAMES = FALSE)),
                   data.table::data.table(g = (o - 1L) * o1 + rep.int(1:o1, pl), cls = do.call(c, s$vpath))))
               })
+              if(anyNA(P)) return(NA)
               return(list(data.table::rbindlist(lapply(P, `[[`, 1L), use.names = FALSE), data.table::rbindlist(lapply(P, `[[`, 2L), use.names = FALSE)))
             }
           } else {
@@ -708,12 +719,13 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               P <- lapply(O, function(o) {
                 s <- igraph::shortest_paths(rst, ORIGINS[o], ORIGINS[(o + 1L):os_length], output = "both", algorithm = "dijkstra")
                 pl <- lengths(s$vpath)
-                if(min(pl, na.rm = TRUE) == 0L) report_points_unc(s, pl, dest_specified = FALSE, d = (o + 1L):os_length)
+                if(min(pl, na.rm = TRUE) == 0L) return(NA)
                 i <- os_length - o
                 return(list(data.table::data.table(origin = on[o], origin_c = ORIGINS[o], destination = on[(o + 1L):os_length],
                   destination_c = ORIGINS[(o + 1L):os_length], distance = vapply(s$epath, function(S) sum(igraph::edge_attr(rst, "weight", S)),
                   numeric(1L), USE.NAMES = FALSE)), data.table::data.table(g = sum(o1:i) - i + rep.int(1:i, pl), cls = do.call(c, s$vpath))))
               })
+              if(anyNA(P)) return(NA)
               return(list(data.table::rbindlist(lapply(P, `[[`, 1L), use.names = FALSE), data.table::rbindlist(lapply(P, `[[`, 2L), use.names = FALSE)))
             }
           }
@@ -722,6 +734,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
           } else {
             p <- parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores)
           }
+          if(anyNA(p)) stop("Not all origins are connected to their respective destinations")
         } else {
           if(tr_directed) {
             p <- lapply(1:o1, function(O) {
@@ -757,10 +770,7 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
                 na.rm = TRUE) - 1L) * l + 1L, by = l + 1L, length.out = l),]
               data.table::setorder(s, origin)
               if(origin_nms_specified) s[, origin := on[origin]]
-              if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) {
-                s <- s[s[which.max(s[["distance"]]), "origin"], nomatch = NULL, on = "origin"]
-                report_points_unc(s[1L, "origin"][["origin"]], as.integer(is.finite(s[["distance"]])), dest_specified = FALSE, d = s[["destination"]])
-              }
+              if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) return(NA)
               return(s)
             }
           } else {
@@ -772,18 +782,16 @@ compute_spaths2 <- function(ORIGINS, rst, crd, dest_specified, origin_nms_specif
               rm(m1, ut)
               data.table::setorder(s, origin)
               if(origin_nms_specified) s[, origin := on[origin]]
-              if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) {
-                s <- s[s[which.max(s[["distance"]]), "origin"], nomatch = NULL, on = "origin"]
-                report_points_unc(s[1L, "origin"][["origin"]], as.integer(is.finite(s[["distance"]])), dest_specified = FALSE, d = s[["destination"]])
-              }
+              if(unconnected_error && is.infinite(max(s[["distance"]], na.rm = TRUE))) return(NA)
               return(s)
             }
           }
           if(nfork) {
-            p <- data.table::rbindlist(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), use.names = FALSE)
-          } else {
-            p <- data.table::rbindlist(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE, mc.cores = ncores),
+            p <- data.table::rbindlist(report_na(parallel::parLapply(cl, split(1:o1, cut(1:o1, ncores, labels = FALSE)), p), unconnected_error),
               use.names = FALSE)
+          } else {
+            p <- data.table::rbindlist(report_na(parallel::mclapply(split(1:o1, cut(1:o1, ncores, labels = FALSE)), p, mc.silent = TRUE,
+              mc.cores = ncores), unconnected_error), use.names = FALSE)
           }
         } else {
           if(tr_directed) {
@@ -823,3 +831,52 @@ report_points_ust <- function(v, u, o) {
   }
   stop("update_rst masks the ", v)
 }
+
+# Report elements of update_rst masking points
+report_update_m <- function(u) {
+  p <- length(u)
+  if(p > 1L) {
+    if(p > 2L) {
+      p <- paste0("s ", paste0(u[1:(p - 1L)], collapse = ", "), ", and ", u[p])
+    } else {
+      p <- paste0("s ", u[1L], " and ", u[2L])
+    }
+    p <- c(p, "")
+  } else {
+    p <- c(paste0(" ", u), "s")
+  }
+  stop("Element", p[1L], " of update_rst mask", p[2L], " cells of origin or destination points")
+}
+
+# Report update_rst elements not allowing to connect all points
+report_update_rst <- function(u) {
+  if(is.null(u)) {
+    p <- "Not all points are connected when updating rst with update_rst"
+  } else {
+    p <- length(u)
+    if(p > 1L) {
+      if(p > 2L) {
+        p <- paste0("s ", paste0(u[1:(p - 1L)], collapse = ", "), ", and ", u[p])
+      } else {
+        p <- paste0("s ", u[1L], " and ", u[2L])
+      }
+    } else {
+      p <- paste0(" ", u)
+    }
+    p <- paste0("Not all points are connected when updating rst with element", p, " of update_rst")
+  }
+  stop(p)
+}
+
+# Report NA values
+report_na <- function(p, unconnected_error) {
+  if(unconnected_error && anyNA(p)) stop("Not all origins are connected to their respective destinations")
+  return(p)
+}
+
+# Rbind or return NA
+rbind_na <- function(p) {
+  if(anyNA(p)) return(NA)
+  return(data.table::rbindlist(p, use.names = FALSE))
+}
+

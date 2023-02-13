@@ -1,5 +1,5 @@
 #include <Rcpp.h>
-// [[Rcpp::plugins(cpp11)]]
+// [[Rcpp::plugins(cpp17)]]
 
 #ifdef _OPENMP
   #define omp_installed true
