@@ -1,3 +1,6 @@
+# spaths 1.0.3
+* Add warning on duplicated cell references
+
 # spaths 1.0.2
 * Bug fixes
 * Performance optimizations
