@@ -9,3 +9,5 @@ Install the package via `devtools::install_github("ChristianDueben/spaths", buil
 Let me know, if you come across any errors.
 
 Extensions to this package are certainly welcome. You can either suggest modifications to `spaths` by sending me an email or submitting a pull request, or you can build a package that calls `spaths`.
+
+**A major update is coming in late 2023. It drops the igraph dependency and moves a lot of R code into C++.**
