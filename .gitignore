@@ -1,6 +1,5 @@
 .Rhistory
 inst/doc
-test/
 .Rproj.user
 src/*.o
 src/*.so

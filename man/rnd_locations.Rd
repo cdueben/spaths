@@ -10,34 +10,34 @@ rnd_locations(
   xmax = 180,
   ymin = -90,
   ymax = 90,
-  output_type = c("data.table", "data.frame", "sf", "terra")
+  output_type = c("data.table", "data.frame", "SpatVector")
 )
 }
 \arguments{
-\item{nobs}{number of observations}
+\item{nobs}{Number of observations}
 
-\item{xmin}{minimum longitude}
+\item{xmin}{Minimum longitude}
 
-\item{xmax}{maximum longitude}
+\item{xmax}{Maximum longitude}
 
-\item{ymin}{minimum latitude}
+\item{ymin}{Minimum latitude}
 
-\item{ymax}{maximum latitude}
+\item{ymax}{Maximum latitude}
 
-\item{output_type}{type of output object. Either \code{"data.table"} (default), \code{"data.frame"}, \code{"sf"}, or \code{"terra"}.}
+\item{output_type}{type of output object. Either \code{"data.table"} (default), \code{"data.frame"}, or \code{"SpatVector"}.}
 }
 \value{
-Returns a data.table, data.frame, sf, or (terra) SpatVector object of unprojected (longlat) points.
+Returns a data.table, data.frame, or SpatVector object of unprojected (lonlat) points.
 }
 \description{
-This function draws random locations in longlat format.
+This function draws random unprojected (lonlat) locations.
 }
 \details{
-This function replicates the equally named function from the \code{conleyreg} package. By default, it draws a global sample of random locations. 
-You can restrict it to a certain region via specifying \code{xmin}, \code{xmax}, \code{ymin}, and \code{ymax}. The function draws from a uniform spatial 
-distribution that assumes the planet to be a perfect sphere. The spherical assumption is common in GIS functions, but deviates from Earth's exact shape.
+By default, the function draws a global sample of random locations. You can restrict it to a certain region via specifying \code{xmin}, 
+\code{xmax}, \code{ymin}, and \code{ymax}. The function draws from a uniform spatial distribution that assumes the planet to be a perfect sphere. The 
+spherical assumption is common in GIS functions, but deviates from Earth's exact shape.
 }
 \examples{
-data <- rnd_locations(1000)
+rnd_locations(1000)
 
 }

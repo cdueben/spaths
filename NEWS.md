@@ -1,3 +1,7 @@
+# spaths 1.1.0
+* The package has been rewritten from the ground up
+* igraph dependency dropped in favor of own C++ code
+
 # spaths 1.0.3
 * Add warning on duplicated cell references
 

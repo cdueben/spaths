@@ -1,85 +1,118 @@
-# Functions called by both spaths_earth and spaths_general
+# Functions called by both shortest_paths
 
-# Update points' cell numbers
-update_points <- function(v, v_list, crd, nms_specified) {
-  if(v_list) {
-    if(nms_specified) {
-      v <- lapply(v, function(V) {
-        return(data.table::setnames(crd[V, c("c_n_c", "nms"), on = "c_n==cls"], "c_n_c", "cls"))
-      })
-    } else {
-      v <- lapply(v, function(V) {
-        return(crd[.(V), "c_n_c", on = "c_n"][["c_n_c"]])
-      })
-    }
+# Convert origins and destinations
+convert_points <- function(v, rst, r_crs, nms_column, nms_specified, pairwise, rst_terra, rst_list, n_grids, rst_xmin, rst_xmax, rst_ymin, rst_ymax,
+  rst_xres, rst_yres, rst_ncol, o = TRUE) {
+  if(rst_terra) {
+    if(all(class(v) != "SpatVector")) v <- terra::vect(v)
+    if(!terra::is.points(v)) v <- terra::centroids(v)
+    if(terra::crs(v) != r_crs) v <- terra::project(v, r_crs)
+    if(nms_specified) nms <- names(v)
   } else {
-    if(nms_specified) {
-      v <- data.table::setnames(crd[v, c("c_n_c", "nms"), on = "c_n==cls"], "c_n_c", "cls")
+    if(is.matrix(v)) {
+      v_df <- FALSE
+      nms <- colnames(v)
+    } else if(is.data.frame(v)) {
+      v_df <- TRUE
+      nms <- names(v)
     } else {
-      v <- crd[.(v), "c_n_c", on = "c_n"][["c_n_c"]]
+      stop(data.table::fifelse(o, "origins", "destinations"), " must be a SpatVector (terra), sf (sf), Spatial* (sp), vector, matrix, or data.frame object")
     }
+    if(!all(c("x", "y") %chin% nms)) stop(data.table::fifelse(o, "origins", "destinations"), " must contain columns named x and y")
+    if(v_df) {
+      v_xmin <- min(v[["x"]])
+      v_xmax <- max(v[["x"]])
+      v_ymin <- min(v[["y"]])
+      v_ymax <- max(v[["y"]])
+    } else {
+      v_xmin <- min(v[, "x"])
+      v_xmax <- max(v[, "x"])
+      v_ymin <- min(v[, "y"])
+      v_ymax <- max(v[, "y"])
+    }
+    if(!is.finite(v_xmin) || !is.finite(v_xmax) || !is.finite(v_ymin) || !is.finite(v_ymax)) {
+      stop(data.table::fifelse(o, "origins", "destinations"), " must only contain finite, non-NA values")
+    }
+    if(v_xmin < rst_xmin || v_xmax > rst_xmax || v_ymin < rst_ymin || v_ymax > rst_ymax) {
+      stop(data.table::fifelse(o, "origins", "destinations"), " fall outside rst")
+    }
+    if(nms_specified && nms_column %chin% c("x", "y")) stop(data.table::fifelse(o, "origin", "destination"), "_names must not be x or y") 
+  }
+  if(nms_specified) {
+    if(!(nms_column %chin% nms)) {
+      stop(data.table::fifelse(o, "origin", "destination"), "_names must either be NULL or the name of a column in ", data.table::fifelse(o, "origins",
+        "destinations"))
+    }
+    if(rst_terra) {
+      nms <- unlist(terra::values(v[, nms_column]), use.names = FALSE)
+    } else if(v_df) {
+      nms <- v[[nms_column]]
+    } else {
+      nms <- v[, nms_column]
+    }
+  }
+  if(rst_terra) {
+    v_cells <- terra::extract(rst, v, cells = TRUE, ID = FALSE)
+    na_points <- !all(stats::complete.cases(v_cells[, 1:n_grids]))
+  } else {
+    if(v_df) {
+      v_cells <- rst_ncol * as.integer((rst_ymax - v[["y"]]) / rst_yres) + as.integer((v[["x"]] - rst_xmin) / rst_xres) + 1L
+    } else {
+      v_cells <- rst_ncol * as.integer((rst_ymax - v[, "y"]) / rst_yres) + as.integer((v[, "x"] - rst_xmin) / rst_xres) + 1L
+    }
+    if(rst_list) {
+      na_points <- !all(stats::complete.cases(rst[v_cells,]))
+    } else {
+      na_points <- anyNA(rst[v_cells])
+    }
+  }
+  if(na_points) {
+    if(rst_terra) {
+      v <- which(!stats::complete.cases(v_cells[, 1:n_grids]))
+    } else if(rst_list) {
+      v <- which(!stats::complete.cases(rst[v_cells,]))
+    } else {
+      v <- which(is.na(rst[v_cells]))
+    }
+    v_length <- length(v)
+    if(v_length > 1L) {
+      if(v_length > 2L) {
+        v <- paste0(paste0(v[1:(v_length - 1L)], collapse = ", "), ", and ", v[v_length])
+      } else {
+        v <- paste0(v, collapse = " and ")
+      }
+      v <- paste0(data.table::fifelse(o, "Origins", "Destinations"), " ", v, " located on NA cells")
+    } else {
+      v <- paste0(data.table::fifelse(o, "Origin", "Destination"), " ", v, " located on NA cell")
+    }
+    stop(v)
+  }
+  if(rst_terra) {
+    v_cells <- v_cells$cell
+  }
+  if(!pairwise && anyDuplicated(v_cells) != 0L) {
+    w <- which(duplicated(v_cells))
+    w_length <- length(w)
+    if(w_length > 1L) {
+      if(w_length > 2L) {
+        w <- paste0(paste0(w[1:(w_length - 1L)], collapse = ", "), ", and ", w[w_length])
+      } else {
+        w <- paste0(w, collapse = " and ")
+      }
+      w <- paste0(data.table::fifelse(o, "Origins", "Destinations"), " ", w, " are duplicates, in that they fall")
+    } else {
+      w <- paste0(data.table::fifelse(o, "Origin", "Destination"), " ", w, " is a duplicate, in that it falls")
+    }
+    w <- paste0(w, " into the same cell as another ", data.table::fifelse(o, "origin", "destination"))
+    warning(w, ". This causes the function to run longer than necessary.")
+  }
+  if(nms_specified) {
+    v <- list(cls = v_cells, nms = nms)
+  } else {
+    v <- list(cls = v_cells)
   }
   return(v)
 }
 
-# Report unconnected origins and destinations
-report_points_unc <- function(o, pl, pairwise = FALSE, dest_specified = TRUE, d = NULL, O = TRUE, both = TRUE, u = NULL, update_rst_list = FALSE) {
-  if(pairwise) {
-    s <- o[pl == 0L]
-    sl <- length(s)
-    if(sl > 1L) {
-      if(sl > 2L) {
-        s <- paste0("s ", paste0(s[1:(sl - 1L)], collapse = ", "), ", and ", s[sl])
-      } else {
-        s <- paste0("s ", paste0(s, collapse = " and "))
-      }
-      s <- paste0(s, " are not connected to their respective destinations")
-    } else {
-      s <- paste0(" ", s, " is not connected to its respective destination")
-    }
-    s <- paste0("Origin", s)
-  } else {
-    if(dest_specified) {
-      s <- which(pl == 0L)
-    } else {
-      s <- d[pl == 0L]
-    }
-    sl <- length(s)
-    if(sl > 1L) {
-      if(sl > 2L) {
-        s <- paste0("s ", paste0(s[1:(sl - 1L)], collapse = ", "), ", and ", s[sl])
-      } else {
-        s <- paste0("s ", paste0(s, collapse = " and "))
-      }
-      if(!both) s <- paste0(s, " are")
-    } else {
-      s <- paste0(" ", s)
-      if(!both) s <- paste0(s, " is")
-    }
-    if(both) {
-      s <- paste0("Origin ", o, " is not connected to ", ifelse(dest_specified, "destination", "origin"), s)
-    } else {
-      if(O) {
-        s <- paste0("Destination", s, " not connected to all origins")
-      } else {
-        s <- paste0("Origin", s, " not connected to all destinations")
-      }
-    }
-  }
-  if(!is.null(u)) {
-    s <- paste0(s, " when updating rst with ")
-    if(update_rst_list) {
-      s <- paste0(s, "element ", u, " of ")
-    }
-    s <- paste0("update_rst")
-  }
-  stop(s)
-}
-
 # Avoid R CMD check note
-utils::globalVariables(c(".", "O", "c_n", "c_n_c", "cls", "g", "origin", "destination", "distance", "from", "to"))
-
-# Function called when loading the package (circumvents current igraph RAM bug)
-.onLoad <- function(libname, pkgname) {
-  igraph::igraph_options(return.vs.es = FALSE)
-}
+utils::globalVariables(c(".", "cell_numbers", "cell_numbers_shifted", "connected", "layer", "path", "starts", "from", "to", "xres", "yres"))

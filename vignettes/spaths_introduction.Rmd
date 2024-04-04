@@ -1,7 +1,7 @@
 ---
 title: "Introduction to spaths"
 author: "Christian Düben"
-date: "Updated: February 06, 2023"
+date: "Updated: March 18, 2024"
 output: 
   rmarkdown::html_vignette:
     number_sections: true
@@ -20,19 +20,17 @@ knitr::opts_chunk$set(
 ```
 
 # Introduction
-<p style="text-align: justify">What is the shortest path from Mombasa, Kenya to Marseille, France by boat? It is not the straight line between those locations, as it cuts through land. This package derives shortest paths between places taking barriers or cost surfaces into account. In the mentioned example, this would be delineating a path along the East African coast, through the Red Sea, the Suez Canal, and the Mediterranean. Apart from relating locations on Earth, `spaths` can also compute shortest paths more generally on spheres and planes.</p>
+<p style="text-align: justify">What is the shortest path from Mombasa, Kenya to Marseille, France by boat? It is not the straight line between those locations, as it cuts through land. This package applies graph theory to gridded spatial data, e.g. deriving shortest paths between places taking barriers or cost surfaces into account. In the mentioned example, this would be delineating a path along the East African coast, through the Red Sea, the Suez Canal, and the Mediterranean. Apart from relating locations on Earth, `spaths` can also compute shortest paths more generally on spheres and planes.</p>
 
-<p style="text-align: justify">Shortest paths algorithms have been around for a while and belong to the field of graph theory. Graphs, or networks, stretch well beyond geographic settings and e.g. include social networks. A leading implementation of graph theoretical methods is `igraph`, a C library. The `igraph` R package is a wrapper to that library. R packages that compute shortest paths in geographic space, most notably the `gdistance` package, convert GIS data to an `igraph` graph and apply functions available in the `igraph` R package. In the above mentioned example, we would employ Dijkstra's [-@Dijkstra1959] algorithm, identifying the shortest path in an undirected graph. In this field, undirected means that distances, or travel costs, between locations are the same in both directions. Marseille is as far from Mombasa as Mombasa is from Marseille. It is, of course, possible to abstract from the symmetry assumption and make it a directed graph, e.g. by accounting for the wind direction effect on travel speeds of a sail boat. The below section on graphs outlines such options in more detail.</p>
+<p style="text-align: justify">`spaths` originates from a research project with larger data and more extensive computations than earlier R packages in this field could handle. Like other packages, previous versions of `spaths` used the `igraph` package, a wrapper for a C library, for graph theoretical algorithms. To further optimize computational performance and tailor the code to the gridded, spatial use case, `spaths` dropped the `igraph` dependency and now comes with its own C++ graph theory implementation.</p>
 
-<p style="text-align: justify">As mentioned above, this package is not the first one to compute shortest paths in GIS data. `gdistance`, `movecost`, and `leastcostpath` are other packages targeting such functionality. The latter two are primarily `gdistance` extensions. I.e. they provide interesting applications calling `gdistance` functions. Both of them e.g. add transition functions. You can derive shortest paths based on Tobler's hiking function without having to check the equation's mathematical definition or how to pass it to `gdistance`. Thus, irrespective of which of the three packages you employ, the internal computations rely on `gdistance`.</p>
+<p style="text-align: justify">Apart from computational performance, `spaths` is geared towards user friendliness. Users do not have to understand how graph-theoretical algorithms, transition functions, or spatial distance functions work. And via a set of parameters, they can choose an implementation that fits their machine's capabilities and the application's prerequisites. Another aspect of user friendliness is the ease of installation. Linux users without administrator rights often struggle to install geospatial or other packages that build on external system libraries. To prevent such issues, `spaths` comes with few dependencies. Apart from core packages by default installed with R, users only have to install `Rcpp` and `data.table`. Installing `terra` is optional and only required, when using `terra` objects as inputs.</p>
 
-<p style="text-align: justify">`spaths` is the result of a research paper that required shortest paths computations which `gdistance` was not well suited to handle. The intention behind developing it is by no means to discredit `gdistance` in any way. `gdistance` is a useful package that has provided the R user community with spatial functionalities for more than a decade. Yet, it is not compatible with the now dominant spatial packages, `sf` and `terra`, as it appears to not have been actively developed in years. And similar to many older spatial R packages, it is not designed with computational performance as a primary target. `spaths` is not meant to replace `gdistance`. It is a different implementation of shortest paths functionalities. In that, it does not recycle any of `gdistance`'s or its dependencies' code. `spaths` is an `igraph` wrapper written from scratch.</p>
-
-<p style="text-align: justify">`spaths` is intended to be computationally efficient and user-friendly. It targets the former objective by using `terra` as its default spatial library, by relying in large part on packages like `data.table` geared towards efficiency with C/C++ functions, by specifying its own C++ functions, and by parallelizing across CPU cores. Apart from computational efficiency being a user-friendly aspect, user-friendliness also entails flexibility regarding input data classes and the absence of the need for the user to understand how the functions operate internally. The user does not have to construct transition matrices before calling a shortest paths function. The functions construct intermediate objects automatically.</p>
+<p style="text-align: justify">The package is written to be a foundation upon which other packages build. As `igraph` has become a dependency for graph-theoretical software more broadly, `spaths` aims to be the dependency for applications connecting points in grids. The extensions of `spaths` can be in the geospatial domain, computing e.g. sailing vessel routes taking wind patterns and ocean currents into account, animal migration influenced by terrain topology and vegetation, or optimal paths for Mars explorations. However, they can also target biomedical studies or any other question connecting points in a grid. All you have to do for most extensions is to pass a custom transition function to the `tr_fun` parameter that tells `spaths` how to compute transitions costs between cells from one or more grid layers.</p>
 <br>
 
 # Graphs
-<p style="text-align: justify">As mentioned above, this package converts the spatial data into a graph and then applies Dijkstra's algorithm from the field of graph theory to it to find the shortest paths between locations. A graph consists of vertices, also called nodes, that are connected via edges. In `spaths`, grid cell centroids are vertices linked to neighboring cells' centroids through egdes. Which neighbors are connected depends on the `contiguity` argument. Figure 1 illustrates the parameter's two options: rook's case contiguity and queen's case contiguity. In the former model, a cell is directly connected to its four horizontally and vertically adjacent neighbors. With the latter structure, a cell is also directly linked to the four diagonally adjacent neighbors, implying a total of eight direct neighbors.</p>
+<p style="text-align: justify">Before `spaths` applies graph-theoretical algorithms, like shortest paths identifications, it converts the spatial data into a graph. A graph consists of vertices, also called nodes, that are connected via edges. In `spaths`, grid cell centroids are vertices linked to neighboring cells' centroids through edges. Which neighbors are connected depends on the `contiguity` argument. Figure 1 illustrates the parameter's two options: rook's case contiguity and queen's case contiguity. In the former model, a cell is directly connected to its four horizontally and vertically adjacent neighbors. With the latter structure, a cell is also directly linked to the four diagonally adjacent neighbors, implying a total of eight direct neighbors.</p>
 <br>
 
 ```{r, out.width = "46%", out.height = "30%", fig.show = "hold", fig.align = "center", fig.cap = "Figure 1: Contiguity", echo = FALSE}
@@ -43,6 +41,14 @@ knitr::include_graphics("Figure_1b.png")
 <br>
 
 <p style="text-align: justify">`spaths` uses queen's case contiguity by default as it often produces more appropriate shortest paths than rook's case contiguity does. The advantages of rook's case contiguity are that the fewer edges imply lower RAM requirements and shorter computational times of shortest path algorithms than with queen's case contiguity.</p>
+
+<p style="text-align: justify">There are other types of contiguity that directly connect a cell to second order neighbors. This can produce paths that look smoother, as it permits the algorithm to traverse the grid at a larger set of angles. Yet, `spaths` does currently not implement such type of contiguity because it would allow the algorithm to jump over barriers that are one cell wide. In an application deriving ship routes, the algorithm could jump over e.g. islands and peninsulas.</p>
+
+<p style="text-align: justify">All of the input grid's, i.e. `rst` argument's, non-`NA` pixels become part of the graph. In the example of ship route estimations, you would set all land pixels to `NA`, restricting ships to only traverse water cells. The number of of non-`NA` cells and thereby size of the graph is the most important determinant of RAM requirements and execution time. Crop the grid to the relevant area or set irrelevant pixels to `NA` to boost efficiency.</p>
+
+<p style="text-align: justify">Shortest paths algorithms, like the here used Dijkstra's [-@Dijkstra1959] algorithm, minimize the sum of edge weights along the paths between origins and destinations. By default, the edge weight in `spaths` is the geographic distance between the centroids of the respective neighboring cells. Figure 2 illustrates edge weights as distance in kilometers between a cell at 1°N 1°E an its neighboring cells under queen's case contiguity in an unprojected, i.e. lonlat, grid of a one degree resolution. The use of kilometers is for visualization purposes and deviates from the actual implementation which uses meters in most cases, as the documentation states.</p>
+
+<p style="text-align: justify">In calculating distances between locations distributed around the globe, it is usually best to use unprojected data. Projections, i.e. transfering coordinates from a spheroid or ellipsoid onto a two dimensional plane, necessarily distort the input. These distortions can severely bias distances between cells. Projections are designed for specific, often regional, applications. If you are not sure whether a projection allows for correct distances in your case, use unprojected data. This phenomenon is not specific to `spaths`, but holds for any GIS software. Another caveat of using projections is that `spaths`, like `terra`, does not connect cells across the projected grid's edges, even if the data is global. Meaning it does not connect the left most cells to the right most cells in the grid. However, when the data is unprojected and global, it does connect them. This applies to any `rst` input class, including a SpatRaster, a RasterLayer, and a matrix or a list of matrices with `spherical = TRUE`.</p>
 <br>
 
 ```{r, out.width = "46%", fig.show = "hold", fig.align = "center", fig.cap = "Figure 2: Edge Weights", echo = FALSE}
@@ -51,30 +57,23 @@ knitr::include_graphics("Figure_2.png")
 ```
 <br>
 
-<p style="text-align: justify">What Dijkstra's algorithm minimizes is the sum of edge weights along the path. By default, the edge weight is the distance between the centroids of the respective cells. Figure 2 illustrates edge weights as distance in kilometers between a cell at 1°N 1°E an its neighboring cells under queen's case contiguity in a lonlat grid of a one degree resolution. You can alter these edge weights by passing a transition function to `tr_fun`. Assuming that you want to account for elevation and that there is a mountain at cell five, the shortest path from cell seven to cell three might not be through five. It might be through the neighboring pixels. The transition function does not have to measure the cost of traveling between adjacent cells in meters or kilometers. It can use any unit, e.g. travel time, calories burnt etc. The shortest, or least cost, path minimizes the edge weights along it - irrespective of what units they are measured in.</p>
+<p style="text-align: justify">`spaths` defaults to the fastest ways of deriving geographic distances. It uses optimized Haversine distance computations for unprojected data on Earth or other spherical objects and optimized Euclidean distance computations for planar data. If you want account for Earth's ellipsoid shape rather than working with spherical distances and computational efficiency is not a top priority, set `dist_comp` to `"terra"`, which derives distances via `terra::distance`. `terra` is a great and performant package. What makes the `"terra"` option slower than `"spaths"` in `dist_comp` is that it triggers the function to derive distances between all neighboring cells separately and export them from R to C++ while the latter choice computes them in a way tailored to this application in the graph construction phase in C++. This implementation e.g. leverages the occurrence of repeated distance values in gridded data.</p>
 
-<p style="text-align: justify">You can pass a function to `tr_fun` that produces asymmetric transition costs. I.e. traveling from cell A to neighboring pixel B can incur different cost than traveling from B to A. Ascending a mountain may take longer than descending. Sailing against the wind might result in lower speeds than sailing with it. A graph with direction-specific edges is a directed graph. When you pass a function to `tr_fun`, the package constructs a directed graph by default. A directed graph has twice as many edges as its undirected counterpart. It therefore occupies more RAM and induces longer computational times in shortest path algorithms. If your `tr_fun` produces symmetric transition costs, set `tr_directed` to `FALSE`.</p>
+<p style="text-align: justify">Edge weights do not have to be geographic straight line distances between cell centroids. With a custom transition function passed to `tr_fun`, you can freely define them in a different way. In this function, you may use the parameters `d` (distance between the pixel centroids), `x1` (x coordinate or longitude of the first cell), `x2` (x coordinate or longitude of the second cell), `y1` (y coordinate or latitude of the first cell), `y2` (y coordinate or latitude of the second cell), `v1` (`rst` layers' values from the first cell), `v2` (`rst` layers' values from the second cell), and `nc` (number of CPU cores set by `ncores`). The algorithm moves from the first to the neighboring second cell. If the data is unprojected, i.e. lonlat, or if `dist_comp = "terra"`, `d` is measured in meters. Otherwise, it uses the units of the CRS. If `rst` has one layer, the values are passed to `v1` and `v2` as vectors. Otherwise they are passed as a data table, if `v_matrix` is `FALSE` (default), and as a matrix, if `v_matrix` is `TRUE`. The function has to be callable from R, but does not have to be written in R. It can e.g. be a C++ function implemented via the `Rcpp` package.</p>
 
-<p style="text-align: justify">`tr_fun` transition functions may include the parameters `d` (distance between the pixel centroids), `x1` (x coordinate or longitude of the first cell), `x2` (x coordinate or longitude of the second cell), `y1` (y coordinate or latitude of the first cell), `y2` (y coordinate or latitude of the second cell), `v1` (`rst` layers' values from the first cell), `v2` (`rst` layers' values from the second cell), `nc` (number of CPU cores set by `ncores`), and `cl` (cluster object returned by `parallel::makePSOCKcluster(ncores)` or `parallel::makeCluster(type = "MPI")`). If `rst` has one layer, the values are passed to `v1` and `v2` as vectors, otherwise they are passed as a data table. The function has to be callable from R, but does not have to be written in R. It can e.g. be a C++ function implemented via the `Rcpp` package.</p>
+<p style="text-align: justify">A common transition function is Tobler's [-@Tobler1993] hiking function. It estimates the travel time between locations conditional on terrain topography. To illustrate this use case, imagine that the input grid is a digital elevation model. It consists of one layer and the pixel values document the location's elevation in meters. This `tr_fun` function then expresses the transition cost in terms of the hours it takes to travel between cell centroids according to Tobler: `function(d, v1, v2) d / (6000 * exp(-3.5 * abs((v2 - v1) / d + 0.05)))`. It combines the straight line distance in meters `d` with the altitude difference, i.e. the value of the second cell `v2` minus the value of the first cell `v1`. Tobler's [-@Tobler1993] hiking function produces asymmetric edge weights. Walking uphill is not equally fast as walking downhill. This results in a directed graph, meaning transition cost depends on the direction in which the algorithm traverses between grid cells. So, the `tr_directed` argument has to be `TRUE`.</p>
 
-<p style="text-align: justify">The following function computes the travel time between pixel centroids in minutes according to the @Tobler1993 hiking function.</p>
+<p style="text-align: justify">With transition functions generating symmetric edge weights, `tr_directed` should always be set to `FALSE`, improving computational performance. Tobler's [-@Tobler1993] function would e.g. produce symmetric transition costs in the absence of the `+ 0.05`. The `tr_directed` parameter only has an effect in the presence of custom transition functions, i.e. if `tr_fun` is not `NULL`. Otherwise, the graph is always undirected.</p>
 
-```{r, eval = FALSE}
-function(v1, v2, d) {
-  return(0.01 * exp(3.5 * abs((v1 - v2) / d + 0.05)) * d)
-}
+<p style="text-align: justify">As already mentioned, `spaths` is not restricted to geographic applications. Here is an arbitrary transition function combining various layers of `rst`: `function(v1, v2) v1[[1L]] * v2[[1L]] + v1[[2L]] * v2[[2L]]`. This multiplies the first cell's value in the first layer with the second cell's value in the first layer and adds it to the cells' second layer product.</p>
 
-```
-
-<p style="text-align: justify">It is recommended to use vectorized R functions like the one above. It computes all edge weights without explicitly calling an iterative structure like `for`, `*apply`, or `foreach` loops. R loops are slow. If your function requires a loop, write it in C++.</p>
-
-<p style="text-align: justify">When working with an `rst` containing multiple layers, `v1` and `v2` are data tables in which the first column refers to the first layer, the second column to the second layer etc. Set `v_matrix` to `TRUE`, if you prefer `v1` and `v2` to be converted to matrices before they are passed to the function. This can e.g. be useful when employing C++ Armadillo classes. The following example function imports `v1` and `v2` as `arma::mat` matrices. The `...` are a placeholder for the omitted function body.</p>
+<p style="text-align: justify">It is recommended to use vectorized R functions like the ones above. It computes all edge weights without explicitly calling an iterative structure like `for`, `*apply`, or `foreach` loops. R loops are slow. If your function requires a loop, write it in C++. Here is an example with `v_matrix = TRUE`, the Armadillo C++ library, C++ 20, and `...` as a placeholder for the function body:</p>
 
 ```{r, eval = FALSE}
 Rcpp::sourceCpp(code = '
   #include <RcppArmadillo.h>
   // [[Rcpp::depends(RcppArmadillo)]]
-  // [[Rcpp::plugins(cpp11)]]
+  // [[Rcpp::plugins(cpp20)]]
   
   // [[Rcpp::export]]
   Rcpp::NumericVector example_tr_fun(arma::mat &v1, arma::mat &v2, Rcpp::NumericVector &d) {
@@ -82,125 +81,330 @@ Rcpp::sourceCpp(code = '
   }
 ')
 ```
-
-<p style="text-align: justify">The `nc` parameter is meant to parallelize C++ or forked R functions. When `ncores > 1` and `cluster` is `"PSOCK"` or `"MPI"`, a parallel R backend pointed to by `cl` is already registered before `tr_fun` is called.</p>
-
-```{r, eval = FALSE}
-function(v1, v2, d, cl) {
-  edge_weights <- function(x) {
-    ...
-  }
-  edge_weights <- parallel::parLapply(cl, 1:length(d), edge_weights)
-  return(edge_weights)
-}
-
-```
-
-<p style="text-align: justify">You can make use of `foreach` loops by registering the `parallel` backend with `foreach` before the calling the loop: `doParallel::registerDoParallel(cl)`.</p>
-
-<p style="text-align: justify">On Windows and Linux machines, OpenMP is a popular library for parallelizing C++ code. The following function extends the above mentioned example with a parallelized loop.</p>
-
-```{r, eval = FALSE}
-Rcpp::sourceCpp(code = '
-  #include <RcppArmadillo.h>
-  // [[Rcpp::depends(RcppArmadillo)]]
-  // [[Rcpp::plugins(cpp11)]]
-  #include <omp.h>
-  // [[Rcpp::plugins(openmp)]]
-  
-  // [[Rcpp::export]]
-  Rcpp::NumericVector example_tr_fun(arma::mat &v1, arma::mat &v2, Rcpp::NumericVector &d, unsigned short int nc) {
-    size_t n = d.length();
-    
-    #pragma omp parallel for num_threads(nc)
-    for(size_t x = 0; x < n; x++) {
-      ...
-    }
-    ...
-  }
-')
-```
-
-<p style="text-align: justify">`spaths` also uses OpenMP in its non-`terra` distance computations. Because OpenMP is commonly not available on MacOS by default, the edge weight computations - like functions in a number of other R packages - tend to be faster on Windows and Linux than on MacOS.</p>
 <br>
 
-# Distances
-<p style="text-align: justify">In a global grid, where cells are connected across the international date line and the poles, an undirected graph has `ncell * 4` or `nrow * ncol * 4` edges with queen's case contiguity. In a regional grid where cells are not connected across the borders, there are `2 - 3 * (nrow + ncol) + 4 * nrow * ncol` edges. Yet, because of the grid structure, many edges share the same distance values. Assuming Earth to be a perfect sphere, a global lonlat grid has `1 + 2 * nrow` unique edge weights, a regional one has `2 * nrow` unique weights. Accordingly, a regional raster with 1000 rows and 2000 columns produces an undirected graph with 7,991,002 edges and 2,000 unique distances or edge weights. Instead of calling the distance function 7,991,002 times on supposedly independent cell pairs, we call an optimized version of it to construct the 2,000 values and plug them into the weight attribute of 7,991,002 edges.</p>
+# Output
+<p style="text-align: justify">By default, `shortest_paths` returns distances. These distances are the sum of edge weights along the shortest paths between points. Without a custom transition function, it is the geographic distance between the centroids of the cells on a path between two points. It is the length of the path in meters, unless you use a projection with different units. With a custom transition function, the distance or length of the path is expressed in whatever units the transition function returns, such as hours of travel time with Tobler's [-@Tobler1993] hiking function.</p>
 
-<p style="text-align: justify">In working with lonlat data, using spherical geometry which assumes the planet to be a perfect sphere is a common choice in GIS software. The `s2` library, which the `sf` package utilizes by default, employs that framework. `spaths` is no exception to this pattern. If you prefer to use the `terra::distance` approach accounting for the different shape instead, set `dist_comp` to `"terra"`.</p>
+```{r, eval = FALSE}
+set.seed(3L)
+input_grid <- terra::rast(crs = "epsg:4326", resolution = 2, vals = sample(c(1L, NA_integer_), 16200L,
+  TRUE, c(0.8, 0.2)))
+origin_pts <- rnd_locations(3L, output_type = "SpatVector")
+destination_pts <- rnd_locations(3L, output_type = "SpatVector")
 
-<p style="text-align: justify">Projecting data from a spheroid to a two-dimensional plane, necessarily introduces distortions. The above mentioned bias from assuming the Earth to be a perfect sphere is small compared to the biases that can arise from distance computations on projected, i.e. non-lonlat, data. Use lonlat geometry unless you are certain that the respective projection appropriately presents distances in the region. Another caveat of working with projected data is that spatial packages usually do not compute distances across the borders of the grid. The algorithm does e.g. not compute a path the leaves the grid on the right side and re-enters it on the left side. Lonlat locations modelled on a sphere are not affected by this phenomenon. If you are working with projected data for which Euclidean distances might not be appropriate, use `terra::distance`-based distances by setting `dist_comp` to `"terra"`. The `terra` package might include further methods applicable to such cases.</p>
+shortest_paths(input_grid, origin_pts)
 
-<p style="text-align: justify">Deriving distances with `"terra"` takes longer than it does with `"spaths"` at least in part because the former applies the distance function to all neighboring cell pairs while the latter takes the above described shortcut. So, the recommendation is to keep the default `dist_comp` argument `"spaths"`, if you favor speed over the `"terra"`'s mentioned characteristics.</p>
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2  19627694
+2:       1            3   7290325
+3:       2            3  14467797
+
+shortest_paths(input_grid, origin_pts, destination_pts)
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            1  13313293
+2:       1            2   6158046
+3:       1            3  15837664
+4:       2            1   9137621
+5:       2            2  16130624
+6:       2            3   4810903
+7:       3            1  15919393
+8:       3            2  10787554
+9:       3            3  19275995
+```
 <br>
+
+<p style="text-align: justify">Instead of distances, `shortest_paths` can output the path lines or lines and distances jointly.</p>
+
+```{r, eval = FALSE}
+shortest_paths(input_grid, origin_pts, output = "lines")
+
+ class       : SpatVector 
+ geometry    : lines 
+ dimensions  : 3, 3  (geometries, attributes)
+ extent      : -179, 179, -63, -1  (xmin, xmax, ymin, ymax)
+ coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+ names       : origins destinations connected
+ type        :   <int>        <int> <logical>
+ values      :       1            2      TRUE
+                     1            3      TRUE
+                     2            3      TRUE
+
+shortest_paths(input_grid, origin_pts, output = "both")
+
+ class       : SpatVector 
+ geometry    : lines 
+ dimensions  : 3, 3  (geometries, attributes)
+ extent      : -179, 179, -63, -1  (xmin, xmax, ymin, ymax)
+ coord. ref. : lon/lat WGS 84 (EPSG:4326) 
+ names       : origins destinations distances
+ type        :   <int>        <int>     <num>
+ values      :       1            2 1.963e+07
+                     1            3  7.29e+06
+                     2            3 1.447e+07
+```
+<br>
+
+<p style="text-align: justify">When no destinations are specified, `shortest_paths` computes the paths between all origin combinations. If transition costs are symmetric, i.e. traveling from cell A to neighboring cell B is as expensive as traveling from B to A, the function by default only returns distances in one direction to boost computational efficiency and lower the RAM requirements of the return object. If you would like the output to report on both directions, set `bidirectional` to `TRUE`.</p>
+
+```{r, eval = FALSE}
+shortest_paths(input_grid, origin_pts)
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2  19627694
+2:       1            3   7290325
+3:       2            3  14467797
+
+shortest_paths(input_grid, origin_pts, bidirectional = TRUE)
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2  19627694
+2:       1            3   7290325
+3:       2            3  14467797
+4:       2            1  19627694
+5:       3            1   7290325
+6:       3            2  14467797
+```
+<br>
+
+<p style="text-align: justify">The distance from a point to itself is zero. So, irrespective of what arguments you pass to `shortest_paths`, the function never returns paths from points to themselves.</p>
+
+<p style="text-align: justify">If you do not want to connect all origins to all destinations, specify `pairwise = TRUE`. This connects the first origin to the first destination, the second origin to the second destination, etc. For computational optimization, the function can change the order of the results. In the example below, the first row contains the distance between the second origin and the second destination. Always check the output's origins and destinations variables regarding which points an estimate refers to.</p>
+
+```{r, eval = FALSE}
+shortest_paths(input_grid, origin_pts, destination_pts, pairwise = TRUE)
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       2            2  16130624
+2:       1            1  13313293
+3:       3            3  19275995
+```
+<br>
+
+<p style="text-align: justify">The origins and destinations variables by default refer to the row numbers in the `origins` (and `destinations`) inputs. You can make `shortest_paths` to utilize other names by specifying a column in `origins` (and `destinations`) containing point names. These names can be of types `character`, `integer`, and `numeric`.</p>
+
+```{r, eval = FALSE}
+origin_pts$name <- letters[1:3]
+shortest_paths(input_grid, origin_pts, origin_names = "name")
+
+   origins destinations distances
+    <char>       <char>     <num>
+1:       a            b  19627694
+2:       a            c   7290325
+3:       b            c  14467797
+```
+<br>
+
+<p style="text-align: justify">Unconnected points are marked with `Inf` in the `distances` variable, if `distance_type` is `"double"` or `"float"`, with `NA`, if `distance_type` is `"int"` or `"unsigned short int"`, and with a `connected` variable, if distances are not returned. Integers use `NA` rather than `Inf` because `Inf` is a numeric, not an integer, value.</p>
+
+<p style="text-align: justify">If `output = "distances"`, the output is by default returned as a data table. Data tables are data frames and you can use them in methods expecting data frames. If you want the result to be a data frame only, not a data table, set `output_class` to `"data.frame"`.</p>
+
+```{r, eval = FALSE}
+shortest_paths(input_grid, origin_pts, output_class = "data.frame")
+
+  origins destinations distances
+1       1            2  19627694
+2       1            3   7290325
+3       2            3  14467797
+```
+<br>
+
+<p style="text-align: justify">If `output` is `"lines"` or `"both"`, the the function returns a SpatVector, if `rst` is a SpatRaster or a RasterLayer, and a list, if `rst` is a matrix or a list of matrices. Explicitly setting `output_class` to `"list"` returns a list in any case. `output_class = "SpatVector"`, however, returns a SpatVector only if `rst` is a SpatRaster or a RasterLayer.</p>
+<br>
+
+# Grid Updating
+<p style="text-align: justify">`NA` cells in `rst` act as barriers. They mark the cells which the algorithm must not travel through. What if these barriers move? In the example of ships moving between ports, these moving barriers could be Caribbean hurricanes. Ships do not go through the storms, but around them.</p>
+
+<p style="text-align: justify">Assume each hurricane is documented with a separate polygon. You could mask the `rst` grid with the different polygons, create one grid per hurricane, and loop over these grids with `shortest_paths`. This would reestimate all shipping routes in each call of `shortest_paths`. Even lines not passing through the Caribbean, e.g. routes between India and Australia, would be recomputed. On top of that, each iteration would check the inputs and convert them into the format used by the algorithm. It is an inefficient strategy.</p>
+
+<p style="text-align: justify">`shortest_paths` comes with an efficient solution to the moving barrier case. You pass the hurricane polygons to `update_rst` and the function computes the shortest paths in a hurricane-free grid and the grids subject to hurricanes. It just recomputes paths affected by a hurricane and is much more efficient than looping over `shortest_paths` is.</p>
+
+```{r, eval = FALSE}
+barrier <- terra::vect("POLYGON ((-179 -25, 100 -25, 100 -26, -179 -26, -179 -25))", crs = "epsg:4326")
+shortest_paths(input_grid, origin_pts, update_rst = barrier)
+
+   origins destinations distances layer
+     <int>        <int>     <num> <int>
+1:       1            2  19627694     0
+2:       1            3   7290325     0
+3:       2            3  14467797     0
+4:       1            2  19627694     1
+5:       1            3  13207350     1
+6:       2            3  15465933     1
+
+barriers <- list(barrier, terra::vect("POLYGON ((0 20, 1 20, 1 -20, 0 -20, 0 20))", crs = "epsg:4326"))
+shortest_paths(input_grid, origin_pts, update_rst = barriers)
+
+   origins destinations distances layer
+     <int>        <int>     <num> <int>
+1:       1            2  19627694     0
+2:       1            3   7290325     0
+3:       2            3  14467797     0
+4:       1            2  19627694     1
+5:       1            3  13207350     1
+6:       2            3  15465933     1
+7:       1            2  19813077     2
+8:       1            3   7290325     2
+9:       2            3  14467797     2
+```
+<br>
+
+<p style="text-align: justify">Layer 0 is the hurricane-free base grid, layer 1 is the hurricane-free base grid updated with the first polygon, and layer 2 is the hurricane-free base grid updated with the second polygon. Each layer updates the unmodified `rst`, not the grid already updated by another polygon. `update_rst` sets cells covered by the respective polygon to `NA`. It never sets cells to any other value than `NA`.</p>
+
+<p style="text-align: justify">The actual implementation does not truly update `rst` or the graph, but marks the respective cells as blocked in a more efficient way. The internal strategy obtains the same results, but is much faster than physically updating the grid would be. So, you should treat `update_rst` as a method of setting any `rst` cells that it intersects with to `NA`, irrespective of the optimized implementation.</p>
 
 # Shortest Paths between Non-Earth Locations
-<p style="text-align: justify">`spaths_general` computes shortest paths in general on a sphere or on a plane. It can e.g. be used to derive shortest paths on other planets or the distance between the coffee mug and the laptop on your desk. Because of its abstract applicability, some of the function's parameters differ from those of `spaths_earth`. (i) The `rst` argument is a matrix or list of matrices. These matrices are the grids that `terra` or `raster` objects represent, without additional attributes like the CRS directly attached to the object. As in `spaths_earth`, non-NA cells mark locations through which the paths may pass. If `rst` is a list, the elements are interpreted as layers and must equal in dimensions. Attributes that are otherwise included in the spatial object are here passed to separate parameters, incl. the resolution (`xres` and `yres`) and the extent (`xmin` and `ymin`). (ii) `origins` and `destinations` are matrices or data frames, not `terra`, `sf`, or `sp` objects. The first column states the x and the second column the y coordinates, irrespective of what the column names are. (iii) Because the data comes without a CRS attribute, you indicate with the `lonlat` argument whether the data is lonlat or planar. In the former case, the function uses Haversine distances. In the latter case, it employs Euclidean distances. These are the same functions that `spaths_earth` uses with `dist_comp` set to `"spaths"`. If `lonlat` is `TRUE`, you need to specify the radius of the sphere via the `radius` argument. (iv) The `update_rst` and related `touches` parameters are currently not implemented for `spaths_general`.</p>
+<p style="text-align: justify">`spaths` is not limited to geographic locations on Earth. The functions can be applied to other scenarios connecting points in grids. These can be of a geographic nature, like other planets, or non-geographic subjects.</p>
 
-<p style="text-align: justify">Other than the above listed points, you can use `spaths_general` like `spaths_earth`. `tr_fun` accepts functions with the same parameters, `round_dist` rounds distances to integers etc.</p>
-<br>
+<p style="text-align: justify">As an example, we consider astronauts walking on Mars. Non-Earth applications must provide `rst` as a matrix or a list of matrices. The SpatRaster and RasterLayer inputs are restricted to evaluations on Earth. If `rst` is a matrix or a list of matrices, the parameters `spherical`, `radius`, and `extent` define what that matrix refers to. In our Martian example, we define `rst` to be a global, unprojected grid of a two degree resolution.</p>
 
-# Optimization
-<p style="text-align: justify">Using `verbose = TRUE`, you can track how long different stages of the `spaths_general` and `spaths_earth` take to compute. The two major stages are (i) constructing the graph from spatial data and (ii) computing shortest paths based on that graph. The functions tend to spend by far most of the time on the latter. The former step is usually much quicker, taking no more than a few seconds - even with tens of millions of edges. The following sections explain how to optimize both stages and cut computing times.</p>
-
-## Avoiding Loops
-<p style="text-align: justify">`spaths_general` and `spaths_earth` both offer options to avoid looping over these functions and consequently repeatedly constructing the graph. Though, graph construction usually takes no more than a few seconds, these seconds easily add up to minutes when iterating over the functions.</p>
-
-<p style="text-align: justify">If you do not want to link all origins to all destinations, you can either make use of the `pairwise` argument or pass `origins` and `destinations` as lists. The following list outlines the implications of different settings. The below examples assume `output` to be `"lines"`. The only difference to the `output = "distance"` scenario is that the returned objects are `SpatVector`s in which each row is associated with a line geometry rather than data tables in which each line is associated with a distance value. The rest is the same. That includes the number of rows etc. In the subsequent paragraphs, $N_{origins}$ denotes the number of origins, $N_{destinations}$ the number of destinations, $i$ a list element, and `paths` the object to which the results of `spaths_earth` and `spaths_general` are written. Approaches one to six assume `update_rst` to be `NULL`.</p>
-
-1. <p style="text-align: justify">`origins`: a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object in `spaths_earth`, or a single matrix or data frame in `spaths_general`. `destinations`: `NULL`.<br>
-_Result_: SpatVector of $\frac{N_{origins} (N_{origins} - 1)}{2}$ rows, if `tr_fun` is `NULL` or `tr_fun` is not `NULL` and `tr_directed` is `FALSE`. Each row corresponds to a unique `origins` pair. I.e. because of the symmetry in an undirected graph, it lists the path between two origins only once. If you want the paths to be listed twice - one observation with point A as origin and point B as destination, and one observation with B as origin and A as destination, append the object with switched column names: `rbind(paths, stats::setNames(paths, c("destination", "origin"))[, c("origin", "destination")])` in the `spaths_earth` case with `output = "lines"`. If `tr_fun` is not `NULL` and `tr_directed` is `TRUE`, the function always returns paths in both directions, returning a SpatVector of $N_{origins} (N_{origins} - 1)$ rows.</p>
-
-2. <p style="text-align: justify">`origins`: a list of SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) objects in `spaths_earth`, or a list of matrices or data frames in `spaths_general`. `destinations`: `NULL`.<br>
-_Result_: List of SpatVectors with $\frac{N_{origins,i} (N_{origins,i} - 1)}{2}$ rows, if `tr_fun` is `NULL` or `tr_fun` is not `NULL` and `tr_directed` is `FALSE`. If `tr_fun` is not `NULL` and `tr_directed` is `TRUE`, the generated SpatVectors have $N_{origins,i} (N_{origins,i} - 1)$ rows. Each list element adheres to the same structure as described in point 1. All origins in `origins[[1]]` are related to all other origins in `origins[[1]]`, all origins in `origins[[2]]` are related to all other origins in `origins[[2]]` etc.</p>
-
-3. <p style="text-align: justify">`origins`: a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object in `spaths_earth`, or a single matrix or data frame in `spaths_general`. `destinations`: a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object in `spaths_earth`, or a single matrix or data frame in `spaths_general`.<br>
-_Result_: SpatVector of $N_{origins} N_{destinations}$ rows, if `pairwise` is `FALSE`. The returned object lists the shortest paths from all origins to all destinations. If `pairwise` is `TRUE`, the resulting SpatVector has $N_{origins}$ rows and links `origins` and `destinations` in a pairwise fashion. It states the shortest path from the first origin to the first destination, from the second origin to the second destination etc.</p>
-
-4. <p style="text-align: justify">`origins`: a list of SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) objects in `spaths_earth`, or a list of matrices or data frames in `spaths_general`. `destinations`: a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object in `spaths_earth`, or a single matrix or data frame in `spaths_general`.<br>
-_Result_: List of SpatVectors of $N_{origins,i}$ rows, if `pairwise` is `TRUE`. It relates the first row of the first `origins` list element to the first destination, the first row of the second `origins` list element to the first destination etc. The function throws an error, if `pairwise` is `FALSE` in this setup, as that links all origins to all destinations, like in approach three. Providing `origins` as a list is not necessary in that case.</p>
-
-5. <p style="text-align: justify">`origins`: a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object in `spaths_earth`, or a matrix or data frame in `spaths_general`. `destinations`: a list of SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) objects in `spaths_earth`, or a list of matrices or data frames in `spaths_general`.<br>
-_Result_: List of SpatVectors of $N_{origins,i}$ rows, if `pairwise` is `TRUE`. It relates the first origin to the first row of the first `destinations` list element, the first origin to the first row of the second `destinations` list element etc. The function throws an error, if `pairwise` is `FALSE` in this setup, as that links all origins to all destinations, like in approach three. Providing `destinations` as a list is not necessary in that case.</p>
-
-6. <p style="text-align: justify">`origins`: a list of SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) objects in `spaths_earth`, or a list of matrices or data frames in `spaths_general`. `destinations`: a list of SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) objects in `spaths_earth`, or a list of matrices or data frames in `spaths_general`.<br>
-_Result_: List of SpatVectors of $N_{origins,i} N_{destinations,i}$ rows, if `pairwise` is `FALSE`. It links all rows of the first `origins` list element to all rows of the first `destinations` list element, all rows of the second `origins` list element to all rows of the second `destinations` list element etc. If `pairwise` is TRUE, the function throws an error, as this links each origin to one destination, like in approach three with `pairwise` set to `TRUE`. Providing `origins` and `destinations` as a lists is not necessary in that case.</p>
-
-<p style="text-align: justify">With `update_rst`, you can update the graph without reconstructing it from scratch. In particular, it alters the set of cells that the algorithm is allowed to pass through, as indicated by `NA` values in `rst`. `spaths_earth` first estimates shortest paths based on `rst`, then removes any cells or vertices from the graph intersecting with geometries in the `update_rst` argument and estimates all paths again based on the updated graph. This is faster than setting further `rst` cells to `NA` and reconstructing the graph, as it just removes vertices from the already assembled graph. `update_rst` is currently only implemented to remove pixels, not to add any, not to update their values.</p>
-
-<p style="text-align: justify">By default, `spaths_earth` checks which paths are affected by the `update_rst` geometries and only re-computes those connections. The other lines are copied without running Dijkstra's algorithm again. This can be much faster than re-estimating all paths, unless (quasi) all connections are affected by `update_rst`. If you know that (almost) all lines change, deactivate the copying functionality and the respective checks by setting `copy` to `FALSE`.</p>
-
-<p style="text-align: justify">`update_rst` accepts a single SpatVector (`terra`), sf (`sf`), or Spatial* (`sp`) object, or a list of them. When using a single object, the function returns a list of length two. The first list element contains shortest paths based on `rst`, not taking `update_rst` into account. The second list element entails shortest paths based on `rst` updated by `update_rst`. When passing a list to `update_rst`, the function returns a list with one more element than `update_rst` has. The first element's paths refer to the unmodified `rst`, the second to paths given `rst` updated by the first element of `update_rst`, the third element to `rst` updated by the second element of `update_rst` etc. The updating is always relative to the unmodified `rst`, not an updated version from a prior iteration.</p>
-
-<p style="text-align: justify">One application of the `update_rst` mechanism is computing the shortest shipping routes between ports given a moving barrier such as a hurricane or icebergs. You would start by generating a grid with all land pixels and other cells that ships are generally not allowed to pass through to `NA`. Then you would assemble a list of SpatVectors holding polygons marking the positions of the hurricane or icebergs at a certain point in time. Calling `spaths_earth` with the grid as `rst` and the list of SpatVectors as `update_rst` would produce a list of shortest paths, with each element listing the paths in a given time period given the location of the geographic barrier.</p>
-<br>
-
-## Graph Size
-<p style="text-align: justify">Graph size, primarily expressed by the number of edges, has a major effect on computational time. Modifying it has the potential to speed up `spaths_earth` and `spaths_general` to a much larger degree than the parallelization options described in the next section usually do.</p>
-
-<p style="text-align: justify">There are various ways of decreasing the graph size. On the one hand, there are methods which alter the graph size but are also likely to affect the shortest paths. They include applying rook's case instead of queen's case contiguity and using coarser `rst` resolutions. On the other hand, there are approaches that leave the paths unaffected. This foremostly entails cutting off vertices, i.e. grid cells, of which you are sure that they are not on the shortest path. When assessing the distance from Mombasa to Marseille by boat, you already know that the path will follow the East-African coast and then pass through the Red Sea, the Suez Canal, and the Mediterranean. So, the `rst` grid can e.g. omit the Pacific, Atlantic, and much of the Indian Ocean. Apart from adjusting the extent, you can remove pixels by increasing the share of `NA` cells within the grid. Draw polygons of regions that the path is not expected to touch and update the grid via `terra::mask`. The `raster` package also offers a `mask` function, though it is usually a lot slower than `terra::mask` and one of the main reasons to generally use `terra` instead of `raster`. You can create polygons through various R packages or through GUI GIS software like QGIS. If you use a custom `tr_fun` transition function, check if it actually produces asymmetric transition costs. If its transition costs are symmetric, set `tr_directed` to `FALSE` which cuts the number of edges by 50 percent.</p>
-<br>
-
-## Parallelization
-<p style="text-align: justify">Both of the functions' main sections, the graph construction and the shortest paths derivation, can be executed in parallel. By default, the functions parallelize both of them over all of the machine's CPU cores, as identified via `parallel::detectCores`. You can alter the number of cores with `ncores` and `paths_ncores`. If `paths_ncores` is not specified, `ncores` sets the number of cores for both stages. Thus, use `ncores = 1` to deactivate parallelization throughout the function call.</p>
-
-<p style="text-align: justify">The edge weight computations are the part of the graph construction that is executed in parallel. By default, i.e. without passing a function to `tr_fun`, the edge weights are distances between neighboring cells. If `dist_comp = "spaths"`, the functions parallelize at the C++ level using the OpenMP library. As mentioned above, OpenMP is often not available by default on MacOS. In these cases, the C++ functions run serially, i.e. on a single core, even if `ncores > 1`. With `dist_comp = "terra"`, parallelization is handled at the R level. Because parallelization is more efficient in C++ than in R, the in serial executions notable speed advantage of `dist_comp = "spaths"` over `dist_comp = "terra"` can be further exacerbated in a parallel setup.</p>
-
-<p style="text-align: justify">Because `spaths_earth` and `spaths_general` usually spend much of their execution time on deriving shortest paths, the parallel configuration in that second stage tends to have a more pronounced effect than parallelism in the first stage. To illustrate this and other attributes of the available multi-core strategies, we repeatedly call `spaths_earth`, deriving differently many shortest paths on differently large grids with different parallel settings. The blue and red lines in Figure 3 depict the results of `paths_ncores = 1` and `ncores = 1` respectively. While both derive shortest paths using a single core, the red approach employs one core to construct the graph whereas the blue approach utilizes eight cores for that first stage. Yet, the results are similar. With a custom `tr_fun` or `dist_comp = "terra"` the difference may be more pronounced.</p>
-
-```{r, out.width = "75%", fig.align = "center", fig.cap = "Figure 3: Efficiency of Parallelism", echo = FALSE}
-knitr::include_graphics("Figure_3.png")
-
+```{r, eval = FALSE}
+set.seed(3L)
+input_grid <- matrix(sample(c(1L, NA_integer_), 16200L, TRUE, c(0.8, 0.2)), nrow = 90)
 ```
 <br>
 
-<p style="text-align: justify">Another fact that the plots highlight is that running the shortest path computations in parallel is not always faster than deriving them serially. The blue and red lines with a serially executed second stage start close to the origin and then increase rather steeply in the number of requested paths. The green lines correspond to a parallelization of both stages across eight cores. This is what happens on an eight core machine when neither `ncores` nor `paths_ncores` are specified. `ncores = 8` would also target this setting. The result of it is flatter lines with higher intercepts. The multi-core approach comes with a larger initial overhead than the serial counterpart, but has a smaller marginal time cost of computing paths beyond that. Shortest paths derivations are parallelized at the R level and this initial overhead is particularly a feature of PSOCK clusters as used in this simulation. The displayed overhead comes from PSOCK clusters copying various objects to all workers. Thus, calling `spaths_earth` or `spaths_general` with `paths_ncores = 1` can cut execution times when the graph is small or when requesting few paths. This matter is less of a concern with FORK clusters. They are more efficient than PSOCK clusters and should outperform the serial approach more often than PSOCK clusters do. When it comes to parallelism in `spaths`, Linux is probably the best choice, given that MacOS does commonly not utilize OpenMP and that Windows restricts R level parallelism to PSOCK.</p>
+<p style="text-align: justify">Because the data is unprojected, meaning it is expressed in degrees on a sphere, not points on a plane, we specify `spherical = TRUE`. Mars' radius is `3389500` meters and the grid's global nature implies an `extent` of `c(-180, 180, -90, 90)`. It stretches from -180 to 180 in the x dimension and -90 to 90 in the y dimension.</p>
 
-<p style="text-align: justify">`par_lvl = "points"` is a sensible default as it works in all of the functions' use cases. It distributes the point pairs across threads. I.e. if there are 400 origin-destination combinations and the function is set to employ four cores, each core computes 100 of these paths. The alternative `"points_lists"` option can be useful when `origins` or `destinations` are lists and the number of list elements is not less than `ncores` or `paths_ncores`. With `"points_lists"`, all paths requested by a list element are handled by the same core. `par_lvl = "update_rst"` becomes a viable choice when `update_rst` is not `NULL` and the number of elements passed to `update_rst` is not less than `ncores - 1` or `paths_ncores - 1`. This option assigns cores to graphs. I.e. all paths based on one graph are all computed by the same core.</p>
+<p style="text-align: justify">When `rst` is a matrix or a list of matrices, `origins` (and `destinations`) are supplied as a matrix, data frame, or data table of coordinates, with columns named `x` and `y`. The Martian example uses a data table.</p>
+
+```{r, eval = FALSE}
+set.seed(3L)
+origin_pts <- rnd_locations(3L)
+
+shortest_paths(input_grid, origin_pts, spherical = TRUE, radius = 3389500, extent = c(-180, 180, -90, 90))
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2   8229741
+2:       1            3   5372309
+3:       2            3   9088755
+```
+<br>
+
+<p style="text-align: justify">`dist_comp = "terra"` is not available in non-Earth-based scenarios. Unless, you compute edge weights through a custom transition function, they are derived through the `dist_comp = "spaths"` methods. Custom transition functions work essentially like they do for Earth. A difference is that grid layers are not passed as layers of a single SpatRaster, but as matrices in a list. As in the SpatRaster case, the layers can be accessed by index and name.</p>
+
+```{r, eval = FALSE}
+set.seed(3L)
+input_grid <- list(even_terrain = input_grid, temperature = matrix(stats::rnorm(16200L, 20, 5), nrow = 90))
+custom_tr <- function(v1, v2) v1[[1L]] * v2[[1L]] + v1[[2L]] * v2[[2L]]
+custom_tr <- function(v1, v2) v1[["even_terrain"]] * v2[["even_terrain"]] + v1[["temperature"]] * v2[["temperature"]]
+
+shortest_paths(input_grid, origin_pts, spherical = TRUE, radius = 3389500, extent = c(-180, 180, -90, 90), tr_fun = custom_tr)
+
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2  15973.37
+2:       1            3  10254.19
+3:       2            1  15973.37
+4:       2            3  17432.90
+5:       3            1  10254.19
+6:       3            2       Inf
+```
+<br>
+
+<p style="text-align: justify">Grid updating is not done with a SpatVector, but a vector of cell numbers, a matrix, or a list of either. The vector's cell numbers mark the cells to set to `NA`. `spaths` counts cells like `terra` does, starting with one in the top left, then increasing from left to right and afterwards from top to bottom. This differs from how R base matrices enumerate cells, which iterate first from top to bottom and second from left to right. If `update_rst` is a matrix, it must be of the same dimensions as `rst` and marks cells to be updated using `NA` values. Cells with non-`NA` values in an  `update_rst` matrix are not updated.</p>
+
+```{r, eval = FALSE}
+set.seed(3L)
+input_grid <- matrix(sample(c(1L, NA_integer_), 16200L, TRUE, c(0.8, 0.2)), nrow = 90)
+
+barrier_vector <- sample.int(16200L, 10L)
+shortest_paths(input_grid, origin_pts, spherical = TRUE, radius = 3389500, extent = c(-180, 180, -90, 90), update_rst = barrier_vector)
+
+   origins destinations distances layer
+     <int>        <int>     <num> <int>
+1:       1            2   8229741     0
+2:       1            3   5372309     0
+3:       2            3   9088755     0
+4:       1            2   8229741     1
+5:       1            3   5372309     1
+6:       2            3   9088755     1
+
+barrier_matrix <- matrix(rep.int(1L, 16200L), nrow = 90)
+barrier_matrix[sample.int(16200L, 10L)] <- NA_integer_
+shortest_paths(input_grid, origin_pts, spherical = TRUE, radius = 3389500, extent = c(-180, 180, -90, 90), update_rst = barrier_matrix)
+
+   origins destinations distances layer
+     <int>        <int>     <num> <int>
+1:       1            2   8229741     0
+2:       1            3   5372309     0
+3:       2            3   9088755     0
+4:       1            2   8229741     1
+5:       1            3   5372309     1
+6:       2            3   9088755     1
+```
+<br>
+
+<p style="text-align: justify">In each of the two cases, `update_rst` marks ten cells in `rst` to be set to `NA`, once using a vector and once using a matrix. In either approach, the ten cells do not affect the paths and accordingly the results are the same for both layers.</p>
+<br>
+
+# Performance Optimization
+<p style="text-align: justify">Performance optimization is a central design principle of `spaths`. `shortest_paths`' runs with defaults that are optimal for the average use case. Nonetheless, there are some performance considerations that should generally be accounted for and various parameters that can help in tailoring the function execution to the application.</p>
+
+<p style="text-align: justify">The number of non-`NA` pixels in `rst` has the largest influence on both computational time and RAM demand. Crop the `rst` to the relevant area and set any cells that the shortest paths are do surely no pass through to `NA`. The quantity of non-`NA` cells does not only determine the size of the graph, but the size of multiple intermediate objects, the number of edge weights to derive, and the number of places to consider in the shortest path algorithm.</p>
+
+<p style="text-align: justify">To be more precise, the primary contributor to graph size is the number of edges: the quantity of links between cells. Of course, the number of edges increases in the grid cell count. There is an option to influence this link though. `shortest_paths` builds on the above described queen's case contiguity with up to eight edges per vertex. Changing `contiguity` to `"root"` cuts RAM consumption and computational time. Yet, it may induce less desireable paths than `contiguity = "queen"` does.</p>
+
+<p style="text-align: justify">You can track the function's progress with `show_progress = TRUE`. This prints messages on stages of `shortest_paths`, including a progress bar, if the number of paths or `update_rst` elements is less than or equal to `bar_limit`. `bar_limit` defaults to 150. In the example below, the function prints three `=`, one per path. `show_progress = TRUE` is meant for testing purposes. Especially printing a progress bar from a parallelized function execution can prolong runtimes because the program limits writing to output to one thread at a time. If you choose to print a progress bar, do not set `bar_limit` too high, which can cause the output buffer to overflow and crash the program.</p>
+
+```{r, eval = FALSE}
+shortest_paths(input_grid, origin_pts, show_progress = TRUE)
+
+Checking arguments
+Converting spatial inputs
+Preparing algoritm inputs
+Starting distances calculation
+|---|
+|===|
+Generating output object
+   origins destinations distances
+     <int>        <int>     <num>
+1:       1            2  19627694
+2:       1            3   7290325
+3:       2            3  14467797
+```
+<br>
+
+<p style="text-align: justify">Deriving lines is computationally more expensive and requires more RAM than deriving distances. Storing the coordinates of 10,000 lines comprised of 500,000 cells on average each, requires 74.5 GB RAM. Storing the distances associated with those 10,000 paths requires 78.1 KB RAM, or 0.0001 percent as much as storing the coordinates. This is, of course, not the only information that the function holds. There are intermediate objects etc. Yet, the computational requirements of assembling path lines should not be underestimated.</p>
+
+<p style="text-align: justify">By default, `ncores` is `NULL` and `shortest_paths` parallelizes across all of the machine's CPU cores. It is implemented with OpenMP in C++. OpenMP is much more efficient than R level parallelism and scales quasi linearly in the number of cores. Each thread runs an iteration of the shortest paths algorithm. How many iterations there are depends on the number of origin and destination points. The software utilizes shared memory parallelism. Hence, objects that are shared across executions of the graph-theoretical algorithm, like the graph and `update_rst`, are not copied. Instead, all threads share the same representation. This does not mean that the RAM use does not increase in the number of cores. Each execution of the shortest path algorithm comes with its own objects, such as the priority queue managing the order of the cells to be visited, which need allocation. So, explicitly setting the number of cores to a value below the default is a way of reducing RAM consumption.</p>
+
+<p style="text-align: justify">OpenMP is commonly not available on MacOS by default. This is not specific to `spaths`, but affects many modern R packages that are geared towards performance. It implies that the package may be much faster on Windows and Linux than on MacOS.</p>
+
+<p style="text-align: justify">`shortest_paths` runs Dijsktra's algorithm to identify shortest paths between points. It runs the algorithm once per origin. If you provide one origin and ten destinations, the function produces ten paths and runs the algorithm once. If you provide two origins and five destinations, the function also produces ten paths, but runs the algorithm twice. The second example, therefore, takes longer than the first one. If the generated graph is undirected, it does not matter, if you pass two origins and five destinations or five origins and two destinations. `shortest_paths` automatically adjusts the direction to minimize the frequency with which Dijkstra's [-@Dijkstra1959] algorithm is called. In the example, it would be called twice in either case.</p>
+
+<p style="text-align: justify">The algorithm by default derives the shortest paths from an origin to other cells of the same graph until all destination cells have been visited. This technique allows the algorithm to potentially stop before having visited each vertex. Yet, it comes at the cost of checking for each visited cell whether it is in the set of destinations. Hence, the default `early_stopping = TRUE` is efficient when point pairs are close to each other compared to the entirety of cells. If at least one points pair in an execution of the shortest paths algorithm is far from each other, the alternative `early_stopping = FALSE` can be faster. It derives the distance to all other cells and then picks the destinations cells from the result, avoiding the check for destination cells while iterating through the graph. `early_stopping = TRUE` and `early_stopping = FALSE` produce the same results, but differ in computational performance.</p>
+
+<p style="text-align: justify">In a grid, the vector of distances between neighboring cells is made up of not that many unique and repeating values. That makes it efficient to precompute edge weights for the entire graph, and is the behavior which the default `pre = TRUE` induces. Computing individual edge weights while Dijkstra's [-@Dijkstra1959] algorithm runs, `pre = FALSE`, requires less RAM, as the function only stores one edge weight at a time, but is almost always much slower than precomputing them all jointly. So, setting `pre` to `FALSE` is one of the last options to consider, when the machine has insufficient RAM.</p>
+
+<p style="text-align: justify">When `update_rst` is a list, there are two potential dimensions for parallelism. In iterating over the updated grids, the function could parallelize at the level of point connections, like in the base grid, or it could parallelize across grids, i.e. list elements of `update_rst`. By default the function chooses the latter, meaning `par_lvl` is `"update_rst"`. All connections in the grid updated with the first element of `update_rst` are handled by one core, all connections in the grid updated with the second element of `update_rst` are handled by another core, etc. If `par_lvl` is `"points"`, the function instead calls the former option. It computes all connections in the grid updated with the first element of `update_rst` in parallel, then computes all connections in the grid updated with the second element of `update_rst` in parallel, etc. The `par_lvl` argument only affects the grids updated with `update_rst` list elements. The unupdated base grid always uses the `"points"` strategy. Which `par_lvl` option is preferred depends on the number of recomputed paths and the number of `update_rst` list elements. Assume you run `shortest_paths` with 8 CPU cores, pass `update_rst` of two elements, and run the shortest paths algorithm 16 times per updated grid. `par_lvl = "update_rst"` would utilize two cores and leave six cores idle. `par_lvl = "points"`, in contrast, would use all 8 cores, commonly running the algorithm twice per core. It does not matter how many connections there are in total and how often Dijkstra's [-@Dijkstra1959] algorithm is called in the base grid. Only paths that are affected by the grid updating, i.e. where `update_rst` sets at least one cell on the path to `NA`, are recomputed.</p>
+
+<p style="text-align: justify">Internally, `shortest_paths` stores paths in the form of cell numbers. By default, these are four byte signed integers, the same type R uses for integers. Only if `output` is `"lines"` or `"both"`, are these cell numbers converted to coordinates, usually two 8 byte double precision floating point numbers per cell, before the function returns. If `rst` has less than 65,535 non-`NA` cells, you can make use of 2 byte unsigned short integers instead. The `path_type = "unsigned short int"` option requires half as much RAM to store cell numbers as `path_type = "int"` demands, but is slower as it comes with type conversions from 4 byte signed integers. The results are the same, irrespective of which option you employ.</p>
+
+<p style="text-align: justify">Another data type selection regards distances. `distance_type` defaults to the fastest and most precise option: double precision floating point numbers. `"double"` corresponds to the `numeric` type in R. It is an 8 byte type. Alternatively, you can choose 4 byte single precision floating point numbers (`"float"`), 4 byte signed integers (`"int"`), and 2 byte unsigned short integers (`"unsigned short int"`). Unlike `path_type`, `distance_type` changes the results. `"float"` stores distances between cells with lower precision than `"double"` does and `"int"` and `"unsigned short int"` round distances to integers. These deviations accumulate over a path and can induce marked differences in the result. Always test the effect in your application before choosing one of the less RAM demanding options. If `distance_type` is `"int"`, the distance between any cells, i.e. the sum of edge weights along any path, not just the returned ones, must not exceed 2,147,483,647. With `"unsigned short int"` that limit is 65,535, making it not applicable in most scenarios. `shortest_paths` does not check, if you meet these numerical constraints. The results are simply wrong, if you violate them. `"float"`, `"int"`, and `"unsigned short int"` are slower than `"double"` because they require type conversions.</p>
 <br>
 
 # Contributions
 <p style="text-align: justify">Contributions to this package are highly welcome. You can submit them as a pull request to the `ChristianDueben/spaths` GitHub repository or via email to the maintainer email mentioned in the `DESCRIPTION` file. You may also build a package on top of `spaths`, as `movecost` and `leastcostpath` did with `gdistance`.</p>
 <br>
 
+# FAQ
+## Why do the lines look so angular, i.e. not really smooth?
+<p style="text-align: justify">This is because of the `contiguity` options that `spaths` implements: queen's and rook's case contiguity. As clarified above, these rules restrict the algorithm to traverse between directly adjacent cells only. Rook's case contiguity provides access to four neighbors spaced at 90° angles. Queen's case contiguity provides access to eight neighbors spaced at 45° angles. Incorporating types of contiguity that allow for traversing between second order neighbors would introduce a larger set of angles for the algorithm to choose from. However, this lets the function to skip over first degree neighbors. In the ship route example above, the ship could skip over land cells, such as islands or peninsulas. Hence, the lines are the shortest paths given the angles the algorithm may travel at.</p>
+
+## What object classes should I use for the inputs?
+<p style="text-align: justify">The recommendation is to use SpatRaster `rst`, SpatVector `origins` (and SpatVector `destinations`) objects when handling locations on Earth. The other classes also work, but the recommended classes tend to be the most appropriate in that they require little conversion and return output in a convenient format. If the data do not represent locations on Earth, you need to use a matrix or list of matrices as `rst` with a matrix or a data frame as `origins` (and `destinations`). Unlike a matrix, a data frame accepts `origin_names` and `destination_names` columns of a different type than the coordinates.</p>
+
+## What features will be added in the next updates?
+<p style="text-align: justify">The next features include alternative shortest paths algorithms, beyond Dijkstra's algorithm, and centrality measures. In the respective categories, the A* algorithm and closeness centrality will be first. How long it will take to publish these updates depends on the maintainer's academic career prospects.</p>
+<br>
+
 # References
+<div id="refs" style="text-align: justify"></div>

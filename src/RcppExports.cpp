@@ -10,90 +10,6 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// dists_queen_d
-Rcpp::NumericVector dists_queen_d(Rcpp::NumericVector& lat1, Rcpp::NumericVector& lon1, Rcpp::NumericVector& lat2, Rcpp::NumericVector& lon2, double yres, double xres, unsigned int nrow, double ymin, bool haversine, unsigned short int ncores, double radius2);
-RcppExport SEXP _spaths_dists_queen_d(SEXP lat1SEXP, SEXP lon1SEXP, SEXP lat2SEXP, SEXP lon2SEXP, SEXP yresSEXP, SEXP xresSEXP, SEXP nrowSEXP, SEXP yminSEXP, SEXP haversineSEXP, SEXP ncoresSEXP, SEXP radius2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat1(lat1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon1(lon1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat2(lat2SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon2(lon2SEXP);
-    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
-    Rcpp::traits::input_parameter< unsigned int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< double >::type ymin(yminSEXP);
-    Rcpp::traits::input_parameter< bool >::type haversine(haversineSEXP);
-    Rcpp::traits::input_parameter< unsigned short int >::type ncores(ncoresSEXP);
-    Rcpp::traits::input_parameter< double >::type radius2(radius2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dists_queen_d(lat1, lon1, lat2, lon2, yres, xres, nrow, ymin, haversine, ncores, radius2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// dists_rook_d
-Rcpp::NumericVector dists_rook_d(Rcpp::NumericVector& lat1, Rcpp::NumericVector& lon1, Rcpp::NumericVector& lat2, Rcpp::NumericVector& lon2, double yres, double xres, unsigned int nrow, double ymin, bool haversine, unsigned short int ncores, double radius2);
-RcppExport SEXP _spaths_dists_rook_d(SEXP lat1SEXP, SEXP lon1SEXP, SEXP lat2SEXP, SEXP lon2SEXP, SEXP yresSEXP, SEXP xresSEXP, SEXP nrowSEXP, SEXP yminSEXP, SEXP haversineSEXP, SEXP ncoresSEXP, SEXP radius2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat1(lat1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon1(lon1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat2(lat2SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon2(lon2SEXP);
-    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
-    Rcpp::traits::input_parameter< unsigned int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< double >::type ymin(yminSEXP);
-    Rcpp::traits::input_parameter< bool >::type haversine(haversineSEXP);
-    Rcpp::traits::input_parameter< unsigned short int >::type ncores(ncoresSEXP);
-    Rcpp::traits::input_parameter< double >::type radius2(radius2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dists_rook_d(lat1, lon1, lat2, lon2, yres, xres, nrow, ymin, haversine, ncores, radius2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// dists_queen_i
-Rcpp::IntegerVector dists_queen_i(Rcpp::NumericVector& lat1, Rcpp::NumericVector& lon1, Rcpp::NumericVector& lat2, Rcpp::NumericVector& lon2, double yres, double xres, unsigned int nrow, double ymin, bool haversine, unsigned short int ncores, double radius2);
-RcppExport SEXP _spaths_dists_queen_i(SEXP lat1SEXP, SEXP lon1SEXP, SEXP lat2SEXP, SEXP lon2SEXP, SEXP yresSEXP, SEXP xresSEXP, SEXP nrowSEXP, SEXP yminSEXP, SEXP haversineSEXP, SEXP ncoresSEXP, SEXP radius2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat1(lat1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon1(lon1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat2(lat2SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon2(lon2SEXP);
-    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
-    Rcpp::traits::input_parameter< unsigned int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< double >::type ymin(yminSEXP);
-    Rcpp::traits::input_parameter< bool >::type haversine(haversineSEXP);
-    Rcpp::traits::input_parameter< unsigned short int >::type ncores(ncoresSEXP);
-    Rcpp::traits::input_parameter< double >::type radius2(radius2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dists_queen_i(lat1, lon1, lat2, lon2, yres, xres, nrow, ymin, haversine, ncores, radius2));
-    return rcpp_result_gen;
-END_RCPP
-}
-// dists_rook_i
-Rcpp::IntegerVector dists_rook_i(Rcpp::NumericVector& lat1, Rcpp::NumericVector& lon1, Rcpp::NumericVector& lat2, Rcpp::NumericVector& lon2, double yres, double xres, unsigned int nrow, double ymin, bool haversine, unsigned short int ncores, double radius2);
-RcppExport SEXP _spaths_dists_rook_i(SEXP lat1SEXP, SEXP lon1SEXP, SEXP lat2SEXP, SEXP lon2SEXP, SEXP yresSEXP, SEXP xresSEXP, SEXP nrowSEXP, SEXP yminSEXP, SEXP haversineSEXP, SEXP ncoresSEXP, SEXP radius2SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat1(lat1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon1(lon1SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lat2(lat2SEXP);
-    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type lon2(lon2SEXP);
-    Rcpp::traits::input_parameter< double >::type yres(yresSEXP);
-    Rcpp::traits::input_parameter< double >::type xres(xresSEXP);
-    Rcpp::traits::input_parameter< unsigned int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< double >::type ymin(yminSEXP);
-    Rcpp::traits::input_parameter< bool >::type haversine(haversineSEXP);
-    Rcpp::traits::input_parameter< unsigned short int >::type ncores(ncoresSEXP);
-    Rcpp::traits::input_parameter< double >::type radius2(radius2SEXP);
-    rcpp_result_gen = Rcpp::wrap(dists_rook_i(lat1, lon1, lat2, lon2, yres, xres, nrow, ymin, haversine, ncores, radius2));
-    return rcpp_result_gen;
-END_RCPP
-}
 // openmp_installed
 bool openmp_installed();
 RcppExport SEXP _spaths_openmp_installed() {
@@ -104,39 +20,371 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// define_ranges
-Rcpp::IntegerVector define_ranges(Rcpp::IntegerVector& n_rows, int avg_rows, int ncores);
-RcppExport SEXP _spaths_define_ranges(SEXP n_rowsSEXP, SEXP avg_rowsSEXP, SEXP ncoresSEXP) {
+// destination_names_character
+Rcpp::CharacterVector destination_names_character(Rcpp::CharacterVector& origin_names);
+RcppExport SEXP _spaths_destination_names_character(SEXP origin_namesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type n_rows(n_rowsSEXP);
-    Rcpp::traits::input_parameter< int >::type avg_rows(avg_rowsSEXP);
-    Rcpp::traits::input_parameter< int >::type ncores(ncoresSEXP);
-    rcpp_result_gen = Rcpp::wrap(define_ranges(n_rows, avg_rows, ncores));
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector& >::type origin_names(origin_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(destination_names_character(origin_names));
     return rcpp_result_gen;
 END_RCPP
 }
-// list_origins
-Rcpp::IntegerVector list_origins(int n_origins);
-RcppExport SEXP _spaths_list_origins(SEXP n_originsSEXP) {
+// destination_names_numeric
+Rcpp::NumericVector destination_names_numeric(Rcpp::NumericVector& origin_names);
+RcppExport SEXP _spaths_destination_names_numeric(SEXP origin_namesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n_origins(n_originsSEXP);
-    rcpp_result_gen = Rcpp::wrap(list_origins(n_origins));
+    Rcpp::traits::input_parameter< Rcpp::NumericVector& >::type origin_names(origin_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(destination_names_numeric(origin_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// destination_names_integer
+Rcpp::IntegerVector destination_names_integer(Rcpp::IntegerVector& origin_names);
+RcppExport SEXP _spaths_destination_names_integer(SEXP origin_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector& >::type origin_names(origin_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(destination_names_integer(origin_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// destination_names_auto
+Rcpp::IntegerVector destination_names_auto(const int n_names);
+RcppExport SEXP _spaths_destination_names_auto(SEXP n_namesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const int >::type n_names(n_namesSEXP);
+    rcpp_result_gen = Rcpp::wrap(destination_names_auto(n_names));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_dists_woweights_d
+Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path, const bool double_weights, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_dists_woweights_d(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP preSEXP, SEXP early_stoppingSEXP, SEXP int_pathSEXP, SEXP double_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_dists_woweights_d(from_to, starts_targets, coords, n_cells, haversine, queen, ncores, pairwise, pre, early_stopping, int_path, double_weights, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_dists_woweights_i
+Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path, const bool signed_weights, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_dists_woweights_i(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP preSEXP, SEXP early_stoppingSEXP, SEXP int_pathSEXP, SEXP signed_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_dists_woweights_i(from_to, starts_targets, coords, n_cells, haversine, queen, ncores, pairwise, pre, early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_dists_wweights_d
+Rcpp::NumericVector r_dists_wweights_d(Rcpp::List& from_to, Rcpp::List& starts_targets, const std::size_t n_cells, const bool early_stopping, const int ncores, const bool directed, const bool pairwise, const bool int_path, const bool double_weights, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_dists_wweights_d(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP n_cellsSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP directedSEXP, SEXP pairwiseSEXP, SEXP int_pathSEXP, SEXP double_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_dists_wweights_d(from_to, starts_targets, n_cells, early_stopping, ncores, directed, pairwise, int_path, double_weights, show_progress, bar_limit));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_dists_wweights_i
+Rcpp::IntegerVector r_dists_wweights_i(Rcpp::List& from_to, Rcpp::List& starts_targets, const std::size_t n_cells, const bool early_stopping, const int ncores, const bool directed, const bool pairwise, const bool int_path, const bool signed_weights, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_dists_wweights_i(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP n_cellsSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP directedSEXP, SEXP pairwiseSEXP, SEXP int_pathSEXP, SEXP signed_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_dists_wweights_i(from_to, starts_targets, n_cells, early_stopping, ncores, directed, pairwise, int_path, signed_weights, show_progress, bar_limit));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_paths_woweights
+Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, const bool early_stopping, const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool int_path, const bool numeric_weights, const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_paths_woweights(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP early_stoppingSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP preSEXP, SEXP int_pathSEXP, SEXP numeric_weightsSEXP, SEXP double_weightsSEXP, SEXP signed_weightsSEXP, SEXP return_distsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type numeric_weights(numeric_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type return_dists(return_distsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_paths_woweights(from_to, starts_targets, coords, n_cells, early_stopping, haversine, queen, ncores, pairwise, pre, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_paths_wweights
+Rcpp::List r_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, const bool early_stopping, const int ncores, const bool directed, const bool pairwise, const bool int_path, const bool numeric_weights, const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_paths_wweights(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP directedSEXP, SEXP pairwiseSEXP, SEXP int_pathSEXP, SEXP numeric_weightsSEXP, SEXP double_weightsSEXP, SEXP signed_weightsSEXP, SEXP return_distsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type numeric_weights(numeric_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type return_dists(return_distsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_paths_wweights(from_to, starts_targets, coords, n_cells, early_stopping, ncores, directed, pairwise, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_dists_woweights_d
+Rcpp::NumericVector r_upd_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool haversine, const bool queen, const int ncores, const bool par_lvl_upd, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path, const bool double_weights, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_upd_dists_woweights_d(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP par_lvl_updSEXP, SEXP pairwiseSEXP, SEXP preSEXP, SEXP early_stoppingSEXP, SEXP int_pathSEXP, SEXP double_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_dists_woweights_d(from_to, starts_targets, coords, n_cells, upd_rst_r, haversine, queen, ncores, par_lvl_upd, pairwise, pre, early_stopping, int_path, double_weights, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_dists_woweights_i
+Rcpp::IntegerVector r_upd_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool haversine, const bool queen, const int ncores, const bool par_lvl_upd, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path, const bool signed_weights, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_upd_dists_woweights_i(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP par_lvl_updSEXP, SEXP pairwiseSEXP, SEXP preSEXP, SEXP early_stoppingSEXP, SEXP int_pathSEXP, SEXP signed_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_dists_woweights_i(from_to, starts_targets, coords, n_cells, upd_rst_r, haversine, queen, ncores, par_lvl_upd, pairwise, pre, early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_dists_wweights_d
+Rcpp::NumericVector r_upd_dists_wweights_d(Rcpp::List& from_to, Rcpp::List& starts_targets, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool early_stopping, const int ncores, const bool pairwise, const bool directed, const bool par_lvl_upd, const bool int_path, const bool double_weights, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_upd_dists_wweights_d(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP directedSEXP, SEXP par_lvl_updSEXP, SEXP int_pathSEXP, SEXP double_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_dists_wweights_d(from_to, starts_targets, n_cells, upd_rst_r, early_stopping, ncores, pairwise, directed, par_lvl_upd, int_path, double_weights, show_progress, bar_limit));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_dists_wweights_i
+Rcpp::IntegerVector r_upd_dists_wweights_i(Rcpp::List& from_to, Rcpp::List& starts_targets, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool early_stopping, const int ncores, const bool pairwise, const bool directed, const bool par_lvl_upd, const bool int_path, const bool signed_weights, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_upd_dists_wweights_i(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP directedSEXP, SEXP par_lvl_updSEXP, SEXP int_pathSEXP, SEXP signed_weightsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_dists_wweights_i(from_to, starts_targets, n_cells, upd_rst_r, early_stopping, ncores, pairwise, directed, par_lvl_upd, int_path, signed_weights, show_progress, bar_limit));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_paths_woweights
+Rcpp::List r_upd_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool early_stopping, const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool par_lvl_upd, const bool pre, const bool int_path, const bool numeric_weights, const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit, const double radius2);
+RcppExport SEXP _spaths_r_upd_paths_woweights(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP early_stoppingSEXP, SEXP haversineSEXP, SEXP queenSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP par_lvl_updSEXP, SEXP preSEXP, SEXP int_pathSEXP, SEXP numeric_weightsSEXP, SEXP double_weightsSEXP, SEXP signed_weightsSEXP, SEXP return_distsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP, SEXP radius2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const bool >::type haversine(haversineSEXP);
+    Rcpp::traits::input_parameter< const bool >::type queen(queenSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pre(preSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type numeric_weights(numeric_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type return_dists(return_distsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    Rcpp::traits::input_parameter< const double >::type radius2(radius2SEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_paths_woweights(from_to, starts_targets, coords, n_cells, upd_rst_r, early_stopping, haversine, queen, ncores, pairwise, par_lvl_upd, pre, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// r_upd_paths_wweights
+Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, Rcpp::List& upd_rst_r, const bool early_stopping, const int ncores, const bool pairwise, const bool directed, const bool par_lvl_upd, const bool int_path, const bool numeric_weights, const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit);
+RcppExport SEXP _spaths_r_upd_paths_wweights(SEXP from_toSEXP, SEXP starts_targetsSEXP, SEXP coordsSEXP, SEXP n_cellsSEXP, SEXP upd_rst_rSEXP, SEXP early_stoppingSEXP, SEXP ncoresSEXP, SEXP pairwiseSEXP, SEXP directedSEXP, SEXP par_lvl_updSEXP, SEXP int_pathSEXP, SEXP numeric_weightsSEXP, SEXP double_weightsSEXP, SEXP signed_weightsSEXP, SEXP return_distsSEXP, SEXP show_progressSEXP, SEXP bar_limitSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List& >::type from_to(from_toSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type starts_targets(starts_targetsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type coords(coordsSEXP);
+    Rcpp::traits::input_parameter< const std::size_t >::type n_cells(n_cellsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List& >::type upd_rst_r(upd_rst_rSEXP);
+    Rcpp::traits::input_parameter< const bool >::type early_stopping(early_stoppingSEXP);
+    Rcpp::traits::input_parameter< const int >::type ncores(ncoresSEXP);
+    Rcpp::traits::input_parameter< const bool >::type pairwise(pairwiseSEXP);
+    Rcpp::traits::input_parameter< const bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< const bool >::type par_lvl_upd(par_lvl_updSEXP);
+    Rcpp::traits::input_parameter< const bool >::type int_path(int_pathSEXP);
+    Rcpp::traits::input_parameter< const bool >::type numeric_weights(numeric_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type double_weights(double_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type signed_weights(signed_weightsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type return_dists(return_distsSEXP);
+    Rcpp::traits::input_parameter< const bool >::type show_progress(show_progressSEXP);
+    Rcpp::traits::input_parameter< const int >::type bar_limit(bar_limitSEXP);
+    rcpp_result_gen = Rcpp::wrap(r_upd_paths_wweights(from_to, starts_targets, coords, n_cells, upd_rst_r, early_stopping, ncores, pairwise, directed, par_lvl_upd, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_spaths_dists_queen_d", (DL_FUNC) &_spaths_dists_queen_d, 11},
-    {"_spaths_dists_rook_d", (DL_FUNC) &_spaths_dists_rook_d, 11},
-    {"_spaths_dists_queen_i", (DL_FUNC) &_spaths_dists_queen_i, 11},
-    {"_spaths_dists_rook_i", (DL_FUNC) &_spaths_dists_rook_i, 11},
     {"_spaths_openmp_installed", (DL_FUNC) &_spaths_openmp_installed, 0},
-    {"_spaths_define_ranges", (DL_FUNC) &_spaths_define_ranges, 3},
-    {"_spaths_list_origins", (DL_FUNC) &_spaths_list_origins, 1},
+    {"_spaths_destination_names_character", (DL_FUNC) &_spaths_destination_names_character, 1},
+    {"_spaths_destination_names_numeric", (DL_FUNC) &_spaths_destination_names_numeric, 1},
+    {"_spaths_destination_names_integer", (DL_FUNC) &_spaths_destination_names_integer, 1},
+    {"_spaths_destination_names_auto", (DL_FUNC) &_spaths_destination_names_auto, 1},
+    {"_spaths_r_dists_woweights_d", (DL_FUNC) &_spaths_r_dists_woweights_d, 15},
+    {"_spaths_r_dists_woweights_i", (DL_FUNC) &_spaths_r_dists_woweights_i, 15},
+    {"_spaths_r_dists_wweights_d", (DL_FUNC) &_spaths_r_dists_wweights_d, 11},
+    {"_spaths_r_dists_wweights_i", (DL_FUNC) &_spaths_r_dists_wweights_i, 11},
+    {"_spaths_r_paths_woweights", (DL_FUNC) &_spaths_r_paths_woweights, 18},
+    {"_spaths_r_paths_wweights", (DL_FUNC) &_spaths_r_paths_wweights, 15},
+    {"_spaths_r_upd_dists_woweights_d", (DL_FUNC) &_spaths_r_upd_dists_woweights_d, 17},
+    {"_spaths_r_upd_dists_woweights_i", (DL_FUNC) &_spaths_r_upd_dists_woweights_i, 17},
+    {"_spaths_r_upd_dists_wweights_d", (DL_FUNC) &_spaths_r_upd_dists_wweights_d, 13},
+    {"_spaths_r_upd_dists_wweights_i", (DL_FUNC) &_spaths_r_upd_dists_wweights_i, 13},
+    {"_spaths_r_upd_paths_woweights", (DL_FUNC) &_spaths_r_upd_paths_woweights, 20},
+    {"_spaths_r_upd_paths_wweights", (DL_FUNC) &_spaths_r_upd_paths_wweights, 17},
     {NULL, NULL, 0}
 };
 

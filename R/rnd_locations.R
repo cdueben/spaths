@@ -1,25 +1,25 @@
 #' Random location drawing
 #'
-#' This function draws random locations in longlat format.
+#' This function draws random unprojected (lonlat) locations.
 #'
-#' @param nobs number of observations
-#' @param xmin minimum longitude
-#' @param xmax maximum longitude
-#' @param ymin minimum latitude
-#' @param ymax maximum latitude
-#' @param output_type type of output object. Either \code{"data.table"} (default), \code{"data.frame"}, \code{"sf"}, or \code{"terra"}.
+#' @param nobs Number of observations
+#' @param xmin Minimum longitude
+#' @param xmax Maximum longitude
+#' @param ymin Minimum latitude
+#' @param ymax Maximum latitude
+#' @param output_type type of output object. Either \code{"data.table"} (default), \code{"data.frame"}, or \code{"SpatVector"}.
 #'
-#' @details This function replicates the equally named function from the \code{conleyreg} package. By default, it draws a global sample of random locations. 
-#' You can restrict it to a certain region via specifying \code{xmin}, \code{xmax}, \code{ymin}, and \code{ymax}. The function draws from a uniform spatial 
-#' distribution that assumes the planet to be a perfect sphere. The spherical assumption is common in GIS functions, but deviates from Earth's exact shape.
+#' @details By default, the function draws a global sample of random locations. You can restrict it to a certain region via specifying \code{xmin}, 
+#' \code{xmax}, \code{ymin}, and \code{ymax}. The function draws from a uniform spatial distribution that assumes the planet to be a perfect sphere. The 
+#' spherical assumption is common in GIS functions, but deviates from Earth's exact shape.
 #'
-#' @return Returns a data.table, data.frame, sf, or (terra) SpatVector object of unprojected (longlat) points.
+#' @return Returns a data.table, data.frame, or SpatVector object of unprojected (lonlat) points.
 #'
 #' @examples
-#' data <- rnd_locations(1000)
+#' rnd_locations(1000)
 #'
 #' @export
-rnd_locations <- function(nobs, xmin = -180, xmax = 180, ymin = -90, ymax = 90, output_type = c("data.table", "data.frame", "sf", "terra")) {
+rnd_locations <- function(nobs, xmin = -180, xmax = 180, ymin = -90, ymax = 90, output_type = c("data.table", "data.frame", "SpatVector")) {
   # Check arguments
   if(!is.numeric(xmin) || length(xmin) != 1 || xmin < -180 || xmin > 180) stop("xmin must be numeric, of length one, and between -180 and 180")
   if(!is.numeric(xmax) || length(xmax) != 1 || xmax < -180 || xmax > 180) stop("xmax must be numeric, of length one, and between -180 and 180")
@@ -35,12 +35,9 @@ rnd_locations <- function(nobs, xmin = -180, xmax = 180, ymin = -90, ymax = 90, 
   
   # Generate data
   if(output_type == "data.table") {
-    locations <- data.table::data.table(lon = stats::runif(nobs, xmin, xmax), lat = rnd_lat(stats::runif(nobs, ymin, ymax)))
+    locations <- data.table::data.table(x = stats::runif(nobs, xmin, xmax), y = rnd_lat(stats::runif(nobs, ymin, ymax)))
   } else if(output_type == "data.frame") {
-    locations <- data.frame(lon = stats::runif(nobs, xmin, xmax), lat = rnd_lat(stats::runif(nobs, ymin, ymax)))
-  } else if(output_type == "sf") {
-    locations <- sf::st_as_sf(data.frame(lat = rnd_lat(stats::runif(nobs, ymin, ymax)), lon = stats::runif(nobs, xmin, xmax)), coords = c("lon", "lat"),
-      crs = 4326)
+    locations <- data.frame(x = stats::runif(nobs, xmin, xmax), y = rnd_lat(stats::runif(nobs, ymin, ymax)))
   } else {
     locations <- terra::vect(data.frame(lat = rnd_lat(stats::runif(nobs, ymin, ymax)), lon = stats::runif(nobs, xmin, xmax)), crs = "epsg:4326")
   }

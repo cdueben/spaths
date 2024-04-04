@@ -1,6 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-test
 vignettes/.*.R$
 vignettes/.*.rds$
 ^LICENSE\.md$
