@@ -3,9 +3,9 @@ Type: Package
 Title: Shortest Paths Between Points in Grids
 Version: 1.1.0
 Authors@R: person("Christian", "Düben", email = "christian.dueben@uni-hamburg.de", role = c("aut", "cre"))
-Description: The package computes shortest paths between points in grids. It can take barriers and custom transition functions into account. Apart from 
-  applications regarding planet Earth, spaths can compute shortest paths generally on spheres and planes. The package is optimized for computational 
-  performance, customizability, and user friendliness. It comes with its own graph-theoretical implementation tailored to gridded data.
+Description: Shortest paths between points in grids. The package can take barriers and custom transition functions into account. Apart from applications 
+  regarding planet Earth, spaths can compute shortest paths generally on spheres and planes. The package is optimized for computational performance, 
+  customizability, and user friendliness. It comes with its own graph-theoretical implementation tailored to gridded data.
 License: MIT + file LICENSE
 Encoding: UTF-8
 URL: https://github.com/ChristianDueben/spaths
