@@ -163,7 +163,7 @@
 #' connected, when it is possible to travel between them via non-NA cells in \code{rst}.
 #' 
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # Generate example data
 #' set.seed(2L)
 #' input_grid <- terra::rast(crs = "epsg:4326", resolution = 2, vals = sample(c(1L, NA_integer_),

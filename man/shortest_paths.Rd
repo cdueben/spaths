@@ -227,7 +227,7 @@ library, but comes with its custom graph-theoritical implementation tailored to 
 The \href{../doc/spaths_introduction.html}{vignette} provides further details on the package.
 }
 \examples{
-\dontrun{
+\donttest{
 # Generate example data
 set.seed(2L)
 input_grid <- terra::rast(crs = "epsg:4326", resolution = 2, vals = sample(c(1L, NA_integer_),
