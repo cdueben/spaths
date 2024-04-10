@@ -1,4 +1,4 @@
-#' Shortest Paths and/ or Distances between Locations
+#' Shortest paths and/ or distances between locations
 #' 
 #' The shortest paths and/ or distance between locations in a grid according to Dijkstra's (1959) algorithm.
 #' 

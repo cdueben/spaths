@@ -258,6 +258,7 @@ shortest_paths(input_grid, origin_pts, update_rst = barriers)
 <p style="text-align: justify">Layer 0 is the hurricane-free base grid, layer 1 is the hurricane-free base grid updated with the first polygon, and layer 2 is the hurricane-free base grid updated with the second polygon. Each layer updates the unmodified `rst`, not the grid already updated by another polygon. `update_rst` sets cells covered by the respective polygon to `NA`. It never sets cells to any other value than `NA`.</p>
 
 <p style="text-align: justify">The actual implementation does not truly update `rst` or the graph, but marks the respective cells as blocked in a more efficient way. The internal strategy obtains the same results, but is much faster than physically updating the grid would be. So, you should treat `update_rst` as a method of setting any `rst` cells that it intersects with to `NA`, irrespective of the optimized implementation.</p>
+<br>
 
 # Shortest Paths between Non-Earth Locations
 <p style="text-align: justify">`spaths` is not limited to geographic locations on Earth. The functions can be applied to other scenarios connecting points in grids. These can be of a geographic nature, like other planets, or non-geographic subjects.</p>
