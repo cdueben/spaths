@@ -1,8 +1,8 @@
 Package: spaths
 Type: Package
 Title: Shortest Paths Between Points in Grids
-Version: 1.1.0
-Authors@R: person("Christian", "Düben", email = "christian.dueben@uni-hamburg.de", role = c("aut", "cre"))
+Version: 1.1.1
+Authors@R: person("Christian", "Düben", email = "cdueben.ml+cran@proton.me", role = c("aut", "cre"))
 Description: Shortest paths between points in grids. Optional barriers and custom transition functions. Applications regarding planet Earth, as well as 
   generally spheres and planes. Optimized for computational performance, customizability, and user friendliness. Graph-theoretical implementation tailored 
   to gridded data. Currently focused on Dijkstra's (1959) <doi:10.1007/BF01386390> algorithm. Future updates broaden the scope to other least cost path

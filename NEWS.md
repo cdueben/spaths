@@ -1,3 +1,6 @@
+# spaths 1.1.1
+* Maintainer email address change
+
 # spaths 1.1.0
 * The package has been rewritten from the ground up
 * igraph dependency dropped in favor of own C++ code
