@@ -1,3 +1,6 @@
+# spaths 1.1.2
+* Fix bug in `dist_comp = "terra"` option of `shortest_paths` throwing an error about a missing function (#1)
+
 # spaths 1.1.1
 * Maintainer email address change
 
