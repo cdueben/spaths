@@ -628,7 +628,7 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
     if(args_used[1L]) {
       crd_cell_numbers <- crd[["cell_numbers"]] - 1L
       if(dist_comp_terra) {
-        crd_xy <- matrix(c(rst_xmin (crd_cell_numbers %% rst_ncol) * rst_xres, rst_ymax - as.integer(crd_cell_numbers / rst_ncol) * rst_yres), ncol = 2L)
+        crd_xy <- matrix(c(rst_xmin + (crd_cell_numbers %% rst_ncol) * rst_xres, rst_ymax - as.integer(crd_cell_numbers / rst_ncol) * rst_yres), ncol = 2L)
         tr_fun_args$d <- terra::distance(crd_xy[from_to[["from"]],], crd_xy[from_to[["to"]],], lonlat = lonlat, pairwise = TRUE)
         if(args_used[2L]) tr_fun_args$x1 <- crd_xy[from_to[["from"]], 1L]
         if(args_used[3L]) tr_fun_args$y1 <- crd_xy[from_to[["from"]], 2L]
