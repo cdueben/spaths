@@ -9,8 +9,8 @@ Description: Shortest paths between points in grids. Optional barriers and custo
   algorithms and to centrality measures.
 License: MIT + file LICENSE
 Encoding: UTF-8
-URL: https://github.com/ChristianDueben/spaths
-BugReports: https://github.com/ChristianDueben/spaths/issues
+URL: https://github.com/cdueben/spaths
+BugReports: https://github.com/cdueben/spaths/issues
 Imports: base (>= 4.0.0), Rcpp (>= 1.0.9), data.table, parallel, stats, utils
 LinkingTo: Rcpp
 Suggests: 
