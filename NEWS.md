@@ -1,3 +1,6 @@
+# spaths 1.1.4
+* Replace hardcoded C++ function overloading with templates
+
 # spaths 1.1.3
 * Update user name
 

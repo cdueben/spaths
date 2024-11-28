@@ -16,37 +16,19 @@
 #include <vector>
 #include <cstddef>
 
-void upd_target_distances(const std::vector<double>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<double>& distances);
-void upd_target_distances(const std::vector<float>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<float>& distances);
-void upd_target_distances(const std::vector<int>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<int>& distances);
-void upd_target_distances(const std::vector<unsigned short int>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<unsigned short int>& distances);
-void upd_target_distances(const std::vector<double>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<double>& distances);
-void upd_target_distances(const std::vector<float>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<float>& distances);
-void upd_target_distances(const std::vector<int>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<int>& distances);
-void upd_target_distances(const std::vector<unsigned short int>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<int>& affected_paths, std::vector<unsigned short int>& distances);
-void upd_target_distances(const std::vector<double>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<double>& distances);
-void upd_target_distances(const std::vector<float>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<float>& distances);
-void upd_target_distances(const std::vector<int>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<int>& distances);
-void upd_target_distances(const std::vector<unsigned short int>& vertex_distance, const std::vector<int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<unsigned short int>& distances);
-void upd_target_distances(const std::vector<double>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<double>& distances);
-void upd_target_distances(const std::vector<float>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<float>& distances);
-void upd_target_distances(const std::vector<int>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<int>& distances);
-void upd_target_distances(const std::vector<unsigned short int>& vertex_distance, const std::vector<unsigned short int>& targets, const int starting_index,
-  const std::vector<unsigned short int>& affected_paths, std::vector<unsigned short int>& distances);
+// target distances in updated grids
+// functions are overloaded with double, float, int, and unsigned short int weights, int and unsigned short int targets,
+// and int and unsigned short int affected_paths
+template <typename D, typename T, typename A> // D: vertex_distance type, T: targets type, A: affected_paths type
+void upd_target_distances(const std::vector<D>& vertex_distance, const std::vector<T>& targets, const int starting_index,
+  const std::vector<A>& affected_paths, std::vector<D>& distances) {
+  const A starting_index_c = starting_index;
+  
+  const std::size_t n_i = targets.size();
+  #pragma omp simd
+  for(std::size_t i = 0; i < n_i; ++i) {
+    distances[starting_index_c + affected_paths[i]] = vertex_distance[targets[i]];
+  }
+}
 
 #endif

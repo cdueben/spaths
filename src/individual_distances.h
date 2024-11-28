@@ -13,7 +13,7 @@
 inline double haversine_dist_d(const int from_cell_number, const int to_cell_number, const int ncol, const double xres, const double yres,
   const double ymax, double radius2) {
   
-  const double pi180 = 0.0174532925199433;                                      // Pi / 180
+  constexpr double pi180 = 0.0174532925199433;                                  // Pi / 180
   const int from_row = from_cell_number / ncol;
   const int to_row = to_cell_number / ncol;
   
@@ -45,8 +45,8 @@ inline double euclidean_dist_d(const int from_cell_number, const int to_cell_num
 }
 
 // float haversine distance
-inline float haversine_dist_f(const int from_cell_number, const int to_cell_number, const int ncol, const double xres, const double yres,
-  const double ymax, double radius2) {
+inline float haversine_dist_f(const int from_cell_number, const int to_cell_number, const int ncol, const double xres, const double yres, const double ymax,
+  double radius2) {
   return (float)(haversine_dist_d(from_cell_number, to_cell_number, ncol, xres, yres, ymax, radius2));
 }
 
@@ -56,8 +56,8 @@ inline float euclidean_dist_f(const int from_cell_number, const int to_cell_numb
 }
 
 // integer haversine distance
-inline int haversine_dist_i(const int from_cell_number, const int to_cell_number, const int ncol, const double xres, const double yres,
-  const double ymax, double radius2) {
+inline int haversine_dist_i(const int from_cell_number, const int to_cell_number, const int ncol, const double xres, const double yres, const double ymax,
+  double radius2) {
   return (int)(haversine_dist_d(from_cell_number, to_cell_number, ncol, xres, yres, ymax, radius2) + 0.5);
 }
 

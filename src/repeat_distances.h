@@ -7,10 +7,16 @@
 #include <algorithm>
 #include <iterator>
 
-// repeat the static distances
-void repeat_distances(std::vector<double>& distances, const int n_upd_rst);
-void repeat_distances(std::vector<float>& distances, const int n_upd_rst);
-void repeat_distances(std::vector<int>& distances, const int n_upd_rst);
-void repeat_distances(std::vector<unsigned short int>& distances, const int n_upd_rst);
+// repeat static distances
+template <typename T>
+void repeat_distances(std::vector<T>& distances, const int n_upd_rst) {
+  const int n_paths = distances.size();
+  if(n_paths != 0) {
+    distances.reserve(n_paths * (n_upd_rst + 1));
+    for(int u = 0; u < n_upd_rst; ++u) {
+      std::copy_n(distances.begin(), n_paths, std::back_inserter(distances));
+    }
+  }
+}
 
 #endif

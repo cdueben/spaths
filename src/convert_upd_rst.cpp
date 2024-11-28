@@ -9,9 +9,10 @@
 // std::vector<std::unordered_set<int> > convert_upd_rst_i
 // std::vector<std::unordered_set<unsigned short int> > convert_upd_rst_u
 
-std::vector<std::unordered_set<int> > convert_upd_rst_i(Rcpp::List& upd_rst_r) {
+template <typename T> // T: unordered set data type
+std::vector<std::unordered_set<T> > convert_upd_rst(Rcpp::List& upd_rst_r, const T t) {
   const std::size_t n_upd_rst = upd_rst_r.size();
-  std::vector<std::unordered_set<int> > upd_rst_c(n_upd_rst);
+  std::vector<std::unordered_set<T> > upd_rst_c(n_upd_rst);
   
   for(std::size_t u = 0; u < n_upd_rst; ++u) {
     Rcpp::IntegerVector upd_rst_u = upd_rst_r[u];
@@ -22,15 +23,12 @@ std::vector<std::unordered_set<int> > convert_upd_rst_i(Rcpp::List& upd_rst_r) {
   return upd_rst_c;
 }
 
+std::vector<std::unordered_set<int> > convert_upd_rst_i(Rcpp::List& upd_rst_r) {
+  constexpr int t {};
+  return convert_upd_rst(upd_rst_r, t);
+}
+
 std::vector<std::unordered_set<unsigned short int> > convert_upd_rst_u(Rcpp::List& upd_rst_r) {
-  const std::size_t n_upd_rst = upd_rst_r.size();
-  std::vector<std::unordered_set<unsigned short int> > upd_rst_c(n_upd_rst);
-  
-  for(std::size_t u = 0; u < n_upd_rst; ++u) {
-    Rcpp::IntegerVector upd_rst_u = upd_rst_r[u];
-    upd_rst_c[u].insert(upd_rst_u.begin(), upd_rst_u.end());
-    upd_rst_r[u] = R_NilValue;
-  }
-  
-  return upd_rst_c;
+  constexpr unsigned short int t {};
+  return convert_upd_rst(upd_rst_r, t);
 }

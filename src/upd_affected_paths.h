@@ -16,12 +16,59 @@
 #include <vector>
 #include <unordered_set>
 
-std::vector<int> upd_affected_paths_i(const std::unordered_set<int>& upd_rst, const std::vector<std::vector<int> >& paths, const int ncores);
-std::vector<unsigned short int> upd_affected_paths_u(const std::unordered_set<int>& upd_rst, const std::vector<std::vector<int> >& paths,
-  const int ncores);
-std::vector<int> upd_affected_paths_i(const std::unordered_set<unsigned short int>& upd_rst, const std::vector<std::vector<unsigned short int> >& paths,
-  const int ncores);
-std::vector<unsigned short int> upd_affected_paths_u(const std::unordered_set<unsigned short int>& upd_rst,
-  const std::vector<std::vector<unsigned short int> >& paths, const int ncores);
+// paths affected by upd_rst
+// functions are overloaded with int and unsigned short int affected paths and int and unsigned short int upd_rst and paths
+// upd_rst and paths contain cell indices (with a possible range from 0 to n_cells - 1)
+// affected_paths contains path indices (with a possible range from 0 to n_paths - 1)
+template <typename A, typename U> // A: affected_paths type, U: upd_rst type
+std::vector<A> upd_affected_paths(const std::unordered_set<U>& upd_rst, const std::vector<std::vector<U> >& paths, const int ncores, const A t) {
+  const A n_paths = paths.size();
+  std::vector<A> affected_paths;
+  
+  if(ncores == 1) {
+    for(A p = 0; p < n_paths; ++p) {
+      bool found {false};
+      for(const U & c : paths[p]) {
+        if(upd_rst.contains(c)) {
+          found = true;
+          break;
+        }
+      }
+      if(found) {
+        affected_paths.push_back(p);
+      }
+    }
+  } else {
+    #pragma omp parallel for num_threads(ncores) schedule(dynamic)
+    for(A p = 0; p < n_paths; ++p) {
+      bool found {false};
+      for(const U & c : paths[p]) {
+        if(upd_rst.contains(c)) {
+          found = true;
+          break;
+        }
+      }
+      if(found) {
+        #pragma omp critical(apupdate)
+        {
+          affected_paths.push_back(p);
+        }
+      }
+    }
+  }
+  return affected_paths;
+}
+
+template <typename U> // U: upd_rst type
+std::vector<int> upd_affected_paths_i(const std::unordered_set<U>& upd_rst, const std::vector<std::vector<U> >& paths, const int ncores) {
+  constexpr int t {};
+  return upd_affected_paths(upd_rst, paths, ncores, t);
+}
+
+template <typename U> // U: upd_rst type
+std::vector<unsigned short int> upd_affected_paths_u(const std::unordered_set<U>& upd_rst, const std::vector<std::vector<U> >& paths, const int ncores) {
+  constexpr unsigned short int t {};
+  return upd_affected_paths(upd_rst, paths, ncores, t);
+}
 
 #endif

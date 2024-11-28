@@ -17,6 +17,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstddef>
+#include <type_traits>
 #include "coordinates.h"
 
 std::vector<std::vector<double> > graph_weights_d(Rcpp::List& from_to, const std::size_t n_cells);
