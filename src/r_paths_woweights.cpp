@@ -17,7 +17,8 @@
 // [[Rcpp::export]]
 Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, const bool early_stopping,
   const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool int_path, const bool numeric_weights,
-  const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit, const double radius2) {
+  const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress, const int bar_limit, const double radius2,
+  const bool from_to_r) {
   
   const int n_paths = compute_n_paths(starts_targets, false, pairwise);
   const int n_dists = (return_dists) ? n_paths : 0;
@@ -37,7 +38,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<int> starts = get_starts_i(starts_targets);
           const std::vector<int> targets = get_targets_i(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -64,7 +66,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<int> starts = get_starts_i(starts_targets);
           const std::vector<int> targets = get_targets_i(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -93,7 +96,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<int> starts = get_starts_i(starts_targets);
           const std::vector<int> targets = get_targets_i(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -120,7 +124,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<int> starts = get_starts_i(starts_targets);
           const std::vector<int> targets = get_targets_i(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+          std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -153,7 +158,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
           const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<unsigned short int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -180,7 +186,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
           const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<unsigned short int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -209,7 +216,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
           const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<unsigned short int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {
@@ -236,7 +244,8 @@ Rcpp::List r_paths_woweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rc
           const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
           const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
           const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+          std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+          from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
           const std::unordered_set<unsigned short int> graph_to_0(graph_to[0].begin(), graph_to[0].end());
           // with precomputed weights
           if(pre) {

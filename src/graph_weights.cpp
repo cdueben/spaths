@@ -14,8 +14,8 @@
 #include <vector>
 #include <algorithm>
 #include <cstddef>
-#include <type_traits>
 #include "coordinates.h"
+#include "structs.h"
 #include "graph_weights.h"
 
 // adjacency list of edge weights
@@ -34,39 +34,63 @@
 // std::vector<std::vector<unsigned short int> > graph_weights_u
 
 template <typename T>
-std::vector<std::vector<T> > graph_w(Rcpp::List& from_to, const std::size_t n_cells, const T t) {
-  Rcpp::IntegerVector from = from_to["from"];
-  Rcpp::NumericVector weights = from_to["weights"];
+std::vector<std::vector<T> > graph_w(Rcpp::List& from_to, const std::size_t n_cells, const T t, const bool int_path, const bool from_to_r) {
   
-  const std::size_t n_edges = from.size();
   std::vector<std::vector<T> > graph_weights(n_cells);
   
-  for(std::size_t i = 0; i < n_edges; ++i) {
-    graph_weights[from[i]].push_back(weights[i]);
+  if(from_to_r) {
+    Rcpp::IntegerVector from = from_to["from"];
+    Rcpp::NumericVector weights = from_to["weights"];
+    
+    const std::size_t n_edges = from.size();
+    
+    for(std::size_t i = 0; i < n_edges; ++i) {
+      graph_weights[from[i]].push_back(weights[i]);
+    }
+  } else {
+    Rcpp::XPtr<std::vector<T> > weights = from_to["weights"];
+    
+    if(int_path) {
+      Rcpp::XPtr<From_To_I> ft = from_to["from_to"];
+      
+      const std::size_t n_edges = ft->from.size();
+      
+      for(std::size_t i = 0; i < n_edges; ++i) {
+        graph_weights[ft->from[i]].push_back((*weights)[i]);
+      }
+    } else {
+      Rcpp::XPtr<From_To_U> ft = from_to["from_to"];
+      
+      const std::size_t n_edges = ft->from.size();
+      
+      for(std::size_t i = 0; i < n_edges; ++i) {
+        graph_weights[ft->from[i]].push_back((*weights)[i]);
+      }
+    }
   }
-  
   from_to["weights"] = R_NilValue;
+  
   return graph_weights;
 }
 
-std::vector<std::vector<double> > graph_weights_d(Rcpp::List& from_to, const std::size_t n_cells) {
+std::vector<std::vector<double> > graph_weights_d(Rcpp::List& from_to, const std::size_t n_cells, const bool int_path, const bool from_to_r) {
   constexpr double t {};
-  return graph_w(from_to, n_cells, t);
+  return graph_w(from_to, n_cells, t, int_path, from_to_r);
 }
 
-std::vector<std::vector<float> > graph_weights_f(Rcpp::List& from_to, const std::size_t n_cells) {
+std::vector<std::vector<float> > graph_weights_f(Rcpp::List& from_to, const std::size_t n_cells, const bool int_path, const bool from_to_r) {
   constexpr float t {};
-  return graph_w(from_to, n_cells, t);
+  return graph_w(from_to, n_cells, t, int_path, from_to_r);
 }
 
-std::vector<std::vector<int> > graph_weights_i(Rcpp::List& from_to, const std::size_t n_cells) {
+std::vector<std::vector<int> > graph_weights_i(Rcpp::List& from_to, const std::size_t n_cells, const bool int_path, const bool from_to_r) {
   constexpr int t {};
-  return graph_w(from_to, n_cells, t);
+  return graph_w(from_to, n_cells, t, int_path, from_to_r);
 }
 
-std::vector<std::vector<unsigned short int> > graph_weights_u(Rcpp::List& from_to, const std::size_t n_cells) {
+std::vector<std::vector<unsigned short int> > graph_weights_u(Rcpp::List& from_to, const std::size_t n_cells, const bool int_path, const bool from_to_r) {
   constexpr unsigned short int t {};
-  return graph_w(from_to, n_cells, t);
+  return graph_w(from_to, n_cells, t, int_path, from_to_r);
 }
 
 template <typename G, typename D> // G: graph_to type, D: distances type

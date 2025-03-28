@@ -46,16 +46,19 @@
 #' but is of course an oversimplification. With \code{"terra"}, the function derives distances via \code{terra::distance}. Because this computes all 
 #' inter-pixel distances separately, it is slower than the \code{"spaths"} approach. It does take the non-spherical nature of the planet into account 
 #' though. With \code{tr_fun}, you can specify a custom distance function that uses neither \code{"spaths"} nor \code{"terra"} distances.
+#' @md
 #' @param tr_fun The transition function based on which to compute edge weights, i.e. the travel cost between adjacent grid cells. Defaults to the 
 #' geographic distance between pixel centroids. Permitted function parameter names are \code{d} (distance between the pixel centroids), \code{x1} (x 
-#' coordinate or longitude of the first cell), \code{x2} (x coordinate or longitude of the second cell), \code{y1} (y coordinate or latitude of the first cell), 
-#' \code{y2} (y coordinate or latitude of the second cell), \code{v1} (\code{rst} layers' values from the first cell), \code{v2} (\code{rst} layers' 
+#' coordinate or longitude of the first cell), \code{x2} (x coordinate or longitude of the second cell), \code{y1} (y coordinate or latitude of the first 
+#' cell), \code{y2} (y coordinate or latitude of the second cell), \code{v1} (\code{rst} layers' values from the first cell), \code{v2} (\code{rst} layers' 
 #' values from the second cell), and \code{nc} (number of CPU cores according to the \code{ncores} argument). If the data is unprojected, i.e. lonlat, or 
 #' if \code{dist_comp = "terra"}, \code{d} is measured in meters. Otherwise, it uses the units of the CRS. If \code{rst} has one layer, the values are 
 #' passed to \code{v1} and \code{v2} as vectors, otherwise they are passed as a data table where the first column refers to the first layer, the second 
-#' column to the second layer etc. Note that data tables are data frames.
+#' column to the second layer etc. Note that data tables are data frames. If \code{rst} produces a graph with more than 
+#' `r format(.Machine$integer.max, big.mark = ",")` edges, the adjacency list cannot be stored in R and any \code{tr_fun} needs to be written in C++ with 
+#' a few additional requirements. See the details below.
 #' @param v_matrix Logical specifying whether to pass values to \code{v1} and \code{v2} in \code{tr_fun} as matrices (\code{TRUE}) instead of data tables 
-#' in the multi-layer case and vectors in the single-layer case (\code{FALSE}). It defaults to \code{FALSE}. Setting it to \code{TRUE} might e.g. be 
+#' in the multi-layer case and vectors in the single-layer case (\code{FALSE}). It defaults to \code{FALSE}. Setting it to \code{TRUE} might, e.g., be 
 #' useful when defining \code{tr_fun} as a C++ Armadillo function.
 #' @param tr_directed Logical specifying whether \code{tr_fun} creates a directed graph. In a directed graph, transition costs can be asymmetric. 
 #' Traveling from cells A to B may imply a different cost than traveling from B to A. It defaults to \code{TRUE} and only has an effect when 
@@ -130,27 +133,34 @@
 #' the boat is a sailing vessel that minimizes travel time conditional on wind speed, wind direction, and ocean currents? Construct a SpatRaster with 
 #' three layers containing information on the three variables respectively. Define a transition function that combines the three layers into a travel time 
 #' measure and pass the SpatRaster to \code{rst} and this function to \code{tr_fun}. \code{tr_fun} makes this package very versatile. With custom 
-#' transition functions, you can take this software out of the geo-spatial context and e.g. apply it to biomedical research.
+#' transition functions, you can take this software out of the geo-spatial context and, e.g., apply it to biomedical research.
 #' 
-#' Going back to the ship routing example, consider that there are hurricanes in the Caribbean. Ships traveling from India to Australia do not care, but 
-#' ships traveling from Mexico to the Netherlands have to go around the storm and must not take the shortest path through the hurricane. You have ten 
-#' SpatVector polygons delineating the extent of the hurricane on ten different days. You want to know what the shortest paths are given that ships must go 
-#' around the polygon on that day. Calling \code{shortest_paths} ten times with ten different SpatRasters would be very inefficient. This would assemble 
-#' the graph ten times and recompute also paths unaffected by the hurricanes, such as the path between India and Australia, in each iteration. Instead, 
-#' pass the SpatVector polygons to \code{update_rst}. \code{shortest_paths} then produces the shortest paths for a hurricane-free route and all ten 
-#' hurricane days, only reestimating the paths that are affected by the hurricane polygon on a specific day.
+#' If \code{rst} produces a graph with no more than `r format(.Machine$integer.max, big.mark = ",")` edges, \code{tr_fun} can either be an R or an Rcpp C++ 
+#' function returning a numeric R vector. Beyond that limit, the number of edges exceed the maximum of elements that R's native data structures can store. 
+#' The data then has to be kept in C++, and most function inputs and output are \code{Rcpp::XPtr} types. \link{max_edges} tells you how many edges your 
+#' \code{rst} could produce and, hence, what type of \code{tr_fun} you may use. Check the 
+#' \href{../doc/transition_functions.html}{transition functions vignette} for details.
+#' 
+#' Further boosting efficiency, \code{shortest_paths} allows you to handle multiple tasks in one function call. In the ship routing example, consider that 
+#' there are hurricanes in the Caribbean. Ships traveling from India to Australia do not care, but ships traveling from Mexico to the Netherlands have to 
+#' go around the storm and must not take the shortest path through the hurricane. You have ten SpatVector polygons delineating the extent of the hurricane 
+#' on ten different days. You want to know what the shortest paths are given that ships must go around the polygon on that day. Calling 
+#' \code{shortest_paths} ten times with ten different SpatRasters would be very inefficient. This would assemble the graph ten times and recompute also 
+#' paths unaffected by the hurricanes, such as the path between India and Australia, in each iteration. Instead, pass the SpatVector polygons to 
+#' \code{update_rst}. \code{shortest_paths} then produces the shortest paths for a hurricane-free route and all ten hurricane days, only reestimating the 
+#' paths that are affected by the hurricane polygon on a specific day.
 #' 
 #' Applications to Earth should always pass a SpatRaster or RasterLayer to \code{rst}. The option to use a matrix or a list of matrices is meant for 
 #' applications to other planets, non-geo-spatial settings, and users who cannot install the terra package on their system.
 #' 
 #' The largest source of runtime inefficiency is the quantity of non-NA pixels in the \code{rst} grid. Limit the \code{rst} argument to the relevant area. 
-#' E.g. crop the grid to the North Atlantic when computing shipping routes between Canada and France. And set regions through which the shortest path does 
+#' E.g., crop the grid to the North Atlantic when computing shipping routes between Canada and France. And set regions through which the shortest path does 
 #' certainly not pass to NA.
 #' 
 #' \code{shortest_paths} is optimized for computational performance. Most of its functions are written in C++ and it does not use a general purpose graph 
 #' library, but comes with its custom graph-theoritical implementation tailored to gridded inputs.
 #' 
-#' The \href{../doc/spaths_introduction.html}{vignette} provides further details on the package.
+#' The \href{../doc/spaths_introduction.html}{introduction vignette} provides further details on the package.
 #' 
 #' @returns If `output = "distances"`, the output is by default returned as a data table. If you want the result to be a data frame only, not a data table, 
 #' set `output_class` to `"data.frame"`. If `output` is `"lines"` or `"both"`, the the function returns a SpatVector, if `rst` is a SpatRaster or a 
@@ -161,6 +171,8 @@
 #' an \code{Inf} distance, if \code{distance_type = "double"} or \code{distance_type = "float"}, and an NA distance, if \code{distance_type = "int"} or 
 #' \code{distance_type = "unsigned short int"}. If \code{output = "lines"}, the \code{connected} variable marks which points are connected. Points are 
 #' connected, when it is possible to travel between them via non-NA cells in \code{rst}.
+#' 
+#' @seealso \link{max_edges}, \link{rnd_locations}.
 #' 
 #' @examples
 #' \donttest{
@@ -530,80 +542,99 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
   origins[["cls"]] <- crd[.(origins[["cls"]]), nomatch = NULL, which = TRUE, on = "cell_numbers"] - 1L
   if(dest_specified) destinations[["cls"]] <- crd[.(destinations[["cls"]]), nomatch = NULL, which = TRUE, on = "cell_numbers"] - 1L
   
-  if(show_progress) message("Preparing algoritm inputs")
+  if(show_progress) message("Preparing algorithm inputs")
+  
+  int_path <- match.arg(path_type) == "int" || nrow(crd) > 65535L
   
   # Obtain adjacency matrix (faster than terra::adjacent)
-  if(queen) {
-    from_to <- 1:8
+  # Construct adjacency list in R, if it fits into a data table; otherwise do it in C++
+  n_cells_na <- n_cells - nrow(crd)
+  max_neighbors <- get_max_neighbors(n_cells, n_cells_na, queen, rst_ncol, rst_nrow, global)
+  rm(n_cells_na)
+  from_to_r <- max_neighbors <= .Machine$integer.max
+  if(from_to_r) {
+    if(queen) {
+      from_to <- 1:8
+    } else {
+      from_to <- c(2L, 4L, 5L, 7L)
+    }
+    from_to <- data.table::rbindlist(lapply(from_to, function(n) {
+      if(n == 1L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol - 1L)[(to %% rst_ncol) == 0L,
+            to := to + rst_ncol][to > 0L,])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol - 1L)[to > 0L & (to %% rst_ncol) != 0L,])
+        }
+      }
+      if(n == 2L) {
+        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol)[to > 0L,])
+      }
+      if(n == 3L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol + 1L)[(to %% rst_ncol) == 1L,
+            to := to - rst_ncol][to > 0L,])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol + 1L)[to > 0L & (to %% rst_ncol) != 1L,])
+        }
+      }
+      if(n == 4L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - 1L)[(to %% rst_ncol) == 0L, to := to + rst_ncol])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - 1L)[(to %% rst_ncol) != 0L,])
+        }
+      }
+      if(n == 5L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + 1L)[(to %% rst_ncol) == 1L, to := to - rst_ncol])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + 1L)[(to %% rst_ncol) != 1L,])
+        }
+      }
+      if(n == 6L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol - 1L)[(to %% rst_ncol) == 0L,
+            to := to + rst_ncol][to <= n_cells,])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol - 1L)[to <= n_cells & (to %% rst_ncol) != 0L,])
+        }
+      }
+      if(n == 7L) {
+        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol)[to <= n_cells,])
+      }
+      if(n == 8L) {
+        if(global) {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol + 1L)[(to %% rst_ncol) == 1L,
+            to := to - rst_ncol][to <= n_cells,])
+        } else {
+          return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol + 1L)[to <= n_cells & (to %% rst_ncol) != 1L,])
+        }
+      }
+    }), use.names = FALSE)
   } else {
-    from_to <- c(2L, 4L, 5L, 7L)
+    if(dist_comp_terra) stop('rst is too large for dist_comp = "terra"')
+    # C++ function includes below step of excluding NA cells and shifting cell numbers
+    if(int_path) {
+      from_to <- list(from_to = from_to_ptr_i(crd[["cell_numbers"]], queen, global, rst_ncol, n_cells, tr_fun_specified, max_neighbors))
+    } else {
+      from_to <- list(from_to = from_to_ptr_u(crd[["cell_numbers"]], queen, global, rst_ncol, n_cells, tr_fun_specified, max_neighbors))
+    }
   }
-  from_to <- data.table::rbindlist(lapply(from_to, function(n) {
-    if(n == 1L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol - 1L)[(to %% rst_ncol) == 0L,
-          to := to + rst_ncol][to > 0L,])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol - 1L)[to > 0L & (to %% rst_ncol) != 0L,])
-      }
-    }
-    if(n == 2L) {
-      return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol)[to > 0L,])
-    }
-    if(n == 3L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol + 1L)[(to %% rst_ncol) == 1L,
-          to := to - rst_ncol][to > 0L,])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - rst_ncol + 1L)[to > 0L & (to %% rst_ncol) != 1L,])
-      }
-    }
-    if(n == 4L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - 1L)[(to %% rst_ncol) == 0L, to := to + rst_ncol])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] - 1L)[(to %% rst_ncol) != 0L,])
-      }
-    }
-    if(n == 5L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + 1L)[(to %% rst_ncol) == 1L, to := to - rst_ncol])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + 1L)[(to %% rst_ncol) != 1L,])
-      }
-    }
-    if(n == 6L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol - 1L)[(to %% rst_ncol) == 0L,
-          to := to + rst_ncol][to <= n_cells,])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol - 1L)[to <= n_cells & (to %% rst_ncol) != 0L,])
-      }
-    }
-    if(n == 7L) {
-      return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol)[to <= n_cells,])
-    }
-    if(n == 8L) {
-      if(global) {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol + 1L)[(to %% rst_ncol) == 1L,
-          to := to - rst_ncol][to <= n_cells,])
-      } else {
-        return(data.table::data.table(from = crd[["cell_numbers"]], to = crd[["cell_numbers"]] + rst_ncol + 1L)[to <= n_cells & (to %% rst_ncol) != 1L,])
-      }
-    }
-  }), use.names = FALSE)
   
   # Shift cell numbers
-  if(tr_fun_specified || dist_comp_terra) {
-    crd[, cell_numbers_shifted := 1:.N]
-  } else {
-    crd[, cell_numbers_shifted := 0:(.N - 1L)]
+  if(from_to_r) {
+    if(tr_fun_specified || dist_comp_terra) {
+      crd[, cell_numbers_shifted := 1:.N]
+    } else {
+      crd[, cell_numbers_shifted := 0:(.N - 1L)]
+    }
+    from_to <- from_to[crd[, c("cell_numbers", "cell_numbers_shifted")], nomatch = NULL, on = "to==cell_numbers"][, to := NULL] # Subset to non-NA dest cls
+    data.table::setnames(from_to, "cell_numbers_shifted", "to")
+    from_to <- as.list(data.table::setnames(from_to[crd[, c("cell_numbers", "cell_numbers_shifted")], nomatch = NULL, on = "from==cell_numbers"][,
+      from := NULL], "cell_numbers_shifted", "from"))
+    crd[, cell_numbers_shifted := NULL]
   }
-  from_to <- from_to[crd[, c("cell_numbers", "cell_numbers_shifted")], nomatch = NULL, on = "to==cell_numbers"][, to := NULL] # Subset to non-NA dest. cells
-  data.table::setnames(from_to, "cell_numbers_shifted", "to")
-  from_to <- as.list(data.table::setnames(from_to[crd[, c("cell_numbers", "cell_numbers_shifted")], nomatch = NULL, on = "from==cell_numbers"][,
-    from := NULL], "cell_numbers_shifted", "from"))
-  crd[, cell_numbers_shifted := NULL]
   
   # Create coords
   coords_cnumbers_included <- FALSE
@@ -622,12 +653,16 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
   }
   
   # Compute edge weights based on custom transition function or terra::distance
+  # from_to uses one-based indices in R and zero-based indices in c++
   if(tr_fun_specified) {
+    if(!from_to_r) {
+      if(!grepl("[.]Call[(]", deparse(body(tr_fun)))) stop("Because of the input grid's size, the transition function must be implemented via Rcpp (C++)")
+    }
     # Collect transition function arguments
     tr_fun_args <- list()
     if(args_used[1L]) {
       crd_cell_numbers <- crd[["cell_numbers"]] - 1L
-      if(dist_comp_terra) {
+      if(dist_comp_terra) { # only relevant when from_to is not an XPtr
         crd_xy <- matrix(c(rst_xmin + (crd_cell_numbers %% rst_ncol) * rst_xres, rst_ymax - as.integer(crd_cell_numbers / rst_ncol) * rst_yres), ncol = 2L)
         tr_fun_args$d <- terra::distance(crd_xy[from_to[["from"]],], crd_xy[from_to[["to"]],], lonlat = lonlat, pairwise = TRUE)
         if(args_used[2L]) tr_fun_args$x1 <- crd_xy[from_to[["from"]], 1L]
@@ -649,40 +684,94 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
           if(queen) {
             d <- yres3 + yres4 * cos((rst_ymax - rst_yres * 1:rst_nrow) * pi / 180) * xres2 ^ 2
             d_diagonal <- radius2 * atan2(sqrt(d), sqrt(1 - d))
-            tr_fun_args$d <- data.table::fcase(row_number[from_to[["from"]]] == row_number[from_to[["to"]]],
-              d_horizontal[row_number[from_to[["from"]]] + 1L],
-              col_number[from_to[["from"]]] == col_number[from_to[["to"]]], d_vertical,
-              rep.int(TRUE, length(from_to[["from"]])), d_diagonal[row_number[from_to[["from"]]] + 1L])
+            if(from_to_r) {
+              tr_fun_args$d <- data.table::fcase(row_number[from_to[["from"]]] == row_number[from_to[["to"]]],
+                d_horizontal[row_number[from_to[["from"]]] + 1L],
+                col_number[from_to[["from"]]] == col_number[from_to[["to"]]], d_vertical,
+                rep.int(TRUE, length(from_to[["from"]])), d_diagonal[row_number[from_to[["from"]]] + 1L])
+            } else {
+              if(int_path) {
+                tr_fun_args$d <- tr_fun_args_d_haversine_queen_i(from_to[["from_to"]], row_number, col_number, d_horizontal, d_vertical, d_diagonal, ncores)
+              } else {
+                tr_fun_args$d <- tr_fun_args_d_haversine_queen_u(from_to[["from_to"]], row_number, col_number, d_horizontal, d_vertical, d_diagonal, ncores)
+              }
+            }
             rm(d_diagonal)
             if(!(args_used[2L] || args_used[4L])) rm(col_number)
           } else {
-            tr_fun_args$d <- data.table::fifelse(row_number[from_to[["from"]]] == row_number[from_to[["to"]]],
-              d_horizontal[row_number[from_to[["from"]]] + 1L], d_vertical)
+            if(from_to_r) {
+              tr_fun_args$d <- data.table::fifelse(row_number[from_to[["from"]]] == row_number[from_to[["to"]]],
+                d_horizontal[row_number[from_to[["from"]]] + 1L], d_vertical)
+            } else {
+              if(int_path) {
+                tr_fun_args$d <- tr_fun_args_d_haversine_rook_i(from_to[["from_to"]], row_number, d_horizontal, d_vertical, ncores)
+              } else {
+                tr_fun_args$d <- tr_fun_args_d_haversine_rook_u(from_to[["from_to"]], row_number, d_horizontal, d_vertical, ncores)
+              }
+            }
           }
           rm(yres2, xres2, yres3, d_vertical, yres4, d, d_horizontal)
         # Euclidean distance
         } else {
           if(queen) {
             d_diagonal <- sqrt(xres ^ 2 + yres ^ 2)
-            tr_fun_args$d <- data.table::fcase(row_number[from_to[["from"]]] == row_number[from_to[["to"]]], rst_xres,
-              col_number[from_to[["from"]]] == col_number[from_to[["to"]]], rst_yres,
-              default = d_diagonal)
+            if(from_to_r) {
+              tr_fun_args$d <- data.table::fcase(row_number[from_to[["from"]]] == row_number[from_to[["to"]]], rst_xres,
+                col_number[from_to[["from"]]] == col_number[from_to[["to"]]], rst_yres,
+                default = d_diagonal)
+            } else {
+              if(int_path) {
+                tr_fun_args$d <- tr_fun_args_d_euclidean_queen_i(from_to[["from_to"]], row_number, col_number, rst_xres, rst_yres, d_vertical, d_diagonal,
+                  ncores)
+              } else {
+                tr_fun_args$d <- tr_fun_args_d_euclidean_queen_u(from_to[["from_to"]], row_number, col_number, rst_xres, rst_yres, d_vertical, d_diagonal,
+                  ncores)
+              }
+            }
             rm(d_diagonal)
             if(!(args_used[2L] || args_used[4L])) rm(col_number)
           } else {
-            tr_fun_args$d <- data.table::fifelse(row_number[from_to[["from"]]] == row_number[from_to[["to"]]], rst_xres, rst_yres)
+            if(from_to_r) {
+              tr_fun_args$d <- data.table::fifelse(row_number[from_to[["from"]]] == row_number[from_to[["to"]]], rst_xres, rst_yres)
+            } else {
+              if(int_path) {
+                tr_fun_args$d <- tr_fun_args_d_euclidean_rook_i(from_to[["from_to"]], row_number, rst_xres, rst_yres, ncores)
+              } else {
+                tr_fun_args$d <- tr_fun_args_d_euclidean_rook_u(from_to[["from_to"]], row_number, rst_xres, rst_yres, ncores)
+              }
+            }
           }
         }
         if(args_used[2L] || args_used[4L]) {
           col_number <- rst_xmin + col_number * rst_xres
-          if(args_used[2L]) tr_fun_args$x1 <- col_number[from_to[["from"]]]
-          if(args_used[4L]) tr_fun_args$x2 <- col_number[from_to[["to"]]]
+          if(from_to_r) {
+            if(args_used[2L]) tr_fun_args$x1 <- col_number[from_to[["from"]]]
+            if(args_used[4L]) tr_fun_args$x2 <- col_number[from_to[["to"]]]
+          } else {
+            if(int_path) {
+              if(args_used[2L]) tr_fun_args$x1 <- tr_fun_args_coords_i(from_to[["from_to"]], col_number, TRUE)
+              if(args_used[4L]) tr_fun_args$x2 <- tr_fun_args_coords_i(from_to[["from_to"]], col_number, FALSE)
+            } else {
+              if(args_used[2L]) tr_fun_args$x1 <- tr_fun_args_coords_u(from_to[["from_to"]], col_number, TRUE)
+              if(args_used[4L]) tr_fun_args$x2 <- tr_fun_args_coords_u(from_to[["from_to"]], col_number, FALSE)
+            }
+          }
           rm(col_number)
         }
         if(args_used[3L] || args_used[5L]) {
           row_number <- rst_ymax - row_number * rst_yres
-          if(args_used[3L]) tr_fun_args$y1 <- row_number[from_to[["from"]]]
-          if(args_used[5L]) tr_fun_args$y2 <- row_number[from_to[["to"]]]
+          if(from_to_r) {
+            if(args_used[3L]) tr_fun_args$y1 <- row_number[from_to[["from"]]]
+            if(args_used[5L]) tr_fun_args$y2 <- row_number[from_to[["to"]]]
+          } else {
+            if(int_path) {
+              if(args_used[3L]) tr_fun_args$y1 <- tr_fun_args_coords_i(from_to[["from_to"]], row_number, TRUE)
+              if(args_used[5L]) tr_fun_args$y2 <- tr_fun_args_coords_i(from_to[["from_to"]], row_number, FALSE)
+            } else {
+              if(args_used[3L]) tr_fun_args$y1 <- tr_fun_args_coords_u(from_to[["from_to"]], row_number, TRUE)
+              if(args_used[5L]) tr_fun_args$y2 <- tr_fun_args_coords_u(from_to[["from_to"]], row_number, FALSE)
+            }
+          }
         }
         rm(row_number)
       }
@@ -693,71 +782,154 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
       rm(crd_cell_numbers)
     } else {
       if(args_used[2L] || args_used[4L]) {
-        x <- rst_xmin + (crd_cell_numbers %% rst_ncol) * rst_xres
-        if(args_used[2L]) tr_fun_args$x1 <- x[from_to[["from"]]]
-        if(args_used[4L]) tr_fun_args$x2 <- x[from_to[["to"]]]
+        x <- rst_xmin + ((crd[["cell_numbers"]] - 1L) %% rst_ncol) * rst_xres
+        if(from_to_r) {
+          if(args_used[2L]) tr_fun_args$x1 <- x[from_to[["from"]]]
+          if(args_used[4L]) tr_fun_args$x2 <- x[from_to[["to"]]]
+        } else {
+          if(int_path) {
+            if(args_used[2L]) tr_fun_args$x1 <- tr_fun_args_coords_i(from_to[["from_to"]], x, TRUE)
+            if(args_used[4L]) tr_fun_args$x2 <- tr_fun_args_coords_i(from_to[["from_to"]], x, FALSE)
+          } else {
+            if(args_used[2L]) tr_fun_args$x1 <- tr_fun_args_coords_u(from_to[["from_to"]], x, TRUE)
+            if(args_used[4L]) tr_fun_args$x2 <- tr_fun_args_coords_u(from_to[["from_to"]], x, FALSE)
+          }
+        }
         rm(x)
       }
       if(args_used[3L] || args_used[5L]) {
-        y <- rst_ymax - as.integer(crd_cell_numbers / rst_ncol) * rst_yres
-        if(args_used[3L]) tr_fun_args$y1 <- y[from_to[["from"]]]
-        if(args_used[5L]) tr_fun_args$y2 <- y[from_to[["to"]]]
+        y <- rst_ymax - as.integer((crd[["cell_numbers"]] - 1L) / rst_ncol) * rst_yres
+        if(from_to_r) {
+          if(args_used[3L]) tr_fun_args$y1 <- y[from_to[["from"]]]
+          if(args_used[5L]) tr_fun_args$y2 <- y[from_to[["to"]]]
+        } else {
+          if(int_path) {
+            if(args_used[3L]) tr_fun_args$y1 <- tr_fun_args_coords_i(from_to[["from_to"]], y, TRUE)
+            if(args_used[5L]) tr_fun_args$y2 <- tr_fun_args_coords_i(from_to[["from_to"]], y, FALSE)
+          } else {
+            if(args_used[3L]) tr_fun_args$y1 <- tr_fun_args_coords_u(from_to[["from_to"]], y, TRUE)
+            if(args_used[5L]) tr_fun_args$y2 <- tr_fun_args_coords_u(from_to[["from_to"]], y, FALSE)
+          }
+        }
         rm(y)
+      }
+    }
+    if(any(args_used[6:7])) {
+      if(v_matrix && !from_to_r) {
+        warning("v_matrix is ignored because the graph has more than ", .Machine$integer.max, " edges")
+        v_matrix <- FALSE
+      }
+      if(!v_matrix) {
+        v_vars <- setdiff(names(crd), "cell_numbers")
+        if(!from_to_r) {
+          v_vars_classes <- vapply(v_vars, function(v) class(crd[[v]]), character(1L), USE.NAMES = FALSE)
+          layer_class_check(v_vars_classes)
+        }
       }
     }
     if(args_used[6L]) {
       if(v_matrix) {
         tr_fun_args$v1 <- as.matrix(crd[from_to[["from"]], .SD, .SDcols = setdiff(names(crd), "cell_numbers")])
       } else {
-        v_vars <- setdiff(names(crd), "cell_numbers")
-        if(length(v_vars) > 1L) {
-          tr_fun_args$v1 <- crd[from_to[["from"]], .SD, .SDcols = v_vars]
+        if(from_to_r) {
+          if(length(v_vars) > 1L) {
+            tr_fun_args$v1 <- crd[from_to[["from"]], .SD, .SDcols = v_vars]
+          } else {
+            tr_fun_args$v1 <- crd[from_to[["from"]], .SD, .SDcols = v_vars][[1L]]
+          }
         } else {
-          tr_fun_args$v1 <- crd[from_to[["from"]], .SD, .SDcols = v_vars][[1L]]
+          if(int_path) {
+            tr_fun_args$v1 <- tr_fun_args_v_i(from_to[["from_to"]], crd, v_vars, v_vars_classes, TRUE)
+          } else {
+            tr_fun_args$v1 <- tr_fun_args_v_u(from_to[["from_to"]], crd, v_vars, v_vars_classes, TRUE)
+          }
         }
-        rm(v_vars)
       }
     }
     if(args_used[7L]) {
       if(v_matrix) {
         tr_fun_args$v2 <- as.matrix(crd[from_to[["to"]], .SD, .SDcols = setdiff(names(crd), "cell_numbers")])
       } else {
-        v_vars <- setdiff(names(crd), "cell_numbers")
-        if(length(v_vars) > 1L) {
-          tr_fun_args$v2 <- crd[from_to[["to"]], .SD, .SDcols = v_vars]
+        if(from_to_r) {
+          if(length(v_vars) > 1L) {
+            tr_fun_args$v2 <- crd[from_to[["to"]], .SD, .SDcols = v_vars]
+          } else {
+            tr_fun_args$v2 <- crd[from_to[["to"]], .SD, .SDcols = v_vars][[1L]]
+          }
         } else {
-          tr_fun_args$v2 <- crd[from_to[["to"]], .SD, .SDcols = v_vars][[1L]]
+          if(int_path) {
+            tr_fun_args$v2 <- tr_fun_args_v_i(from_to[["from_to"]], crd, v_vars, v_vars_classes, FALSE)
+          } else {
+            tr_fun_args$v2 <- tr_fun_args_v_u(from_to[["from_to"]], crd, v_vars, v_vars_classes, FALSE)
+          }
         }
-        rm(v_vars)
       }
     }
-    if(any(args_used[6:7])) crd[, setdiff(names(crd), "cell_numbers") := NULL]
+    if(any(args_used[6:7])) {
+      crd[, setdiff(names(crd), "cell_numbers") := NULL]
+      if(!v_matrix) {
+        rm(v_vars)
+        if(!from_to_r) rm(v_vars_classes)
+      }
+    }
     if(args_used[8L]) tr_fun_args$nc <- ncores
-    from_to[["weights"]] <- do.call(tr_fun, tr_fun_args[tr_fun_v]) # Run transition function
-    if(!is.vector(from_to[["weights"]])) {
-      stop("tr_fun must return a vector")
-    }
-    if(!is.numeric(from_to[["weights"]])) {
-      stop("tr_fun must return a numeric or integer vector")
-    }
-    if(any(!is.finite(from_to[["weights"]]))) {
-      stop("tr_fun must exclusively return finite values")
-    }
-    if(min(from_to[["weights"]]) < 0) {
-      stop("tr_fun must not return negative values")
-    }
-    if(length(from_to[["weights"]]) != length(from_to[["from"]])) {
-      stop("The number of values returned by tr_fun must equal the number of edges")
-    }
-    if(is.integer(from_to[["weights"]])) {
-      if(numeric_weights) {
-        warning("distance_type is ", distance_type, ", but tr_fun returns integers, to which spaths responds by converting the tr_fun results to numeric")
-        from_to[["weights"]] <- as.numeric(from_to[["weights"]])
+    from_to$weights <- do.call(tr_fun, tr_fun_args[tr_fun_v]) # Run transition function
+    if(from_to_r) {
+      if(!is.vector(from_to[["weights"]])) {
+        stop("tr_fun must return a vector")
+      }
+      if(!is.numeric(from_to[["weights"]])) {
+        stop("tr_fun must return a numeric or integer vector")
+      }
+      if(any(!is.finite(from_to[["weights"]]))) {
+        stop("tr_fun must exclusively return finite values")
+      }
+      if(min(from_to[["weights"]]) < 0) {
+        stop("tr_fun must not return negative values")
+      }
+      if(length(from_to[["weights"]]) != length(from_to[["from"]])) {
+        stop("The number of values returned by tr_fun must equal the number of edges")
+      }
+      if(is.integer(from_to[["weights"]])) {
+        if(numeric_weights) {
+          warning("distance_type is ", distance_type, ", but tr_fun returns integers, to which spaths responds by converting the tr_fun results to numeric")
+          from_to[["weights"]] <- as.numeric(from_to[["weights"]])
+        }
+      } else {
+        if(!numeric_weights) {
+          warning("distance_type is ", distance_type, ", but tr_fun returns numerics, to which spaths responds by rounding the tr_fun results to integers")
+          from_to[["weights"]] <- as.integer(from_to[["weights"]] + 0.5)
+        }
       }
     } else {
-      if(!numeric_weights) {
-        warning("distance_type is ", distance_type, ", but tr_fun returns numerics, to which spaths responds by rounding the tr_fun results to integers")
-        from_to[["weights"]] <- as.integer(from_to[["weights"]] + 0.5)
+      if(int_path) {
+        if(numeric_weights) {
+          if(double_weights) {
+            check_weights_i_d(from_to[["from_to"]], from_to[["weights"]])
+          } else {
+            check_weights_i_f(from_to[["from_to"]], from_to[["weights"]])
+          }
+        } else {
+          if(signed_weights) {
+            check_weights_i_i(from_to[["from_to"]], from_to[["weights"]])
+          } else {
+            check_weights_i_u(from_to[["from_to"]], from_to[["weights"]])
+          }
+        }
+      } else {
+        if(numeric_weights) {
+          if(double_weights) {
+            check_weights_u_d(from_to[["from_to"]], from_to[["weights"]])
+          } else {
+            check_weights_u_f(from_to[["from_to"]], from_to[["weights"]])
+          }
+        } else {
+          if(signed_weights) {
+            check_weights_u_i(from_to[["from_to"]], from_to[["weights"]])
+          } else {
+            check_weights_u_u(from_to[["from_to"]], from_to[["weights"]])
+          }
+        }
       }
     }
     rm(tr_fun_args, args_used, tr_fun_v)
@@ -777,7 +949,7 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
     }
     tr_directed <- FALSE
   }
-  if(tr_fun_specified || dist_comp_terra) {
+  if(from_to_r && (tr_fun_specified || dist_comp_terra)) {
     from_to[["from"]] <- from_to[["from"]] - 1L
     from_to[["to"]] <- from_to[["to"]] - 1L
   }
@@ -813,7 +985,6 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
   }
   
   n_cells <- nrow(crd)
-  int_path <- match.arg(path_type) == "int" || n_cells > 65535L
   
   if((output_lines || !wweights) && !coords_cnumbers_included) {
     coords[["cell_numbers"]] <- crd[["cell_numbers"]] - 1L
@@ -888,18 +1059,22 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
     if(upd_rst_specified) {
       if(wweights) {
         paths_lines <- r_upd_paths_wweights(from_to, starts_targets, coords, n_cells, update_rst, early_stopping, ncores, pairwise, tr_directed,
-          par_lvl_upd, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit)
+          par_lvl_upd, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, from_to_r)
       } else {
         paths_lines <- r_upd_paths_woweights(from_to, starts_targets, coords, n_cells, update_rst, early_stopping, lonlat, queen, ncores, pairwise,
-          par_lvl_upd, pre, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2)
+          par_lvl_upd, pre, int_path, numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2, from_to_r)
       }
     } else {
       if(wweights) {
-        paths_lines <- r_paths_wweights(from_to, starts_targets, coords, n_cells, early_stopping, ncores, tr_directed, pairwise, int_path, numeric_weights,
-          double_weights, signed_weights, return_dists, show_progress, bar_limit)
+        if(from_to_r) {
+          paths_lines <- r_paths_wweights(from_to, starts_targets, coords, n_cells, early_stopping, ncores, tr_directed, pairwise, int_path,
+            numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, from_to_r)
+        } else {
+          
+        }
       } else {
         paths_lines <- r_paths_woweights(from_to, starts_targets, coords, n_cells, early_stopping, lonlat, queen, ncores, pairwise, pre, int_path,
-          numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2)
+          numeric_weights, double_weights, signed_weights, return_dists, show_progress, bar_limit, radius2, from_to_r)
       }
     }
     paths <- paths_lines[setdiff(names(paths_lines), "paths")]
@@ -924,19 +1099,19 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
       if(wweights) {
         if(numeric_weights) {
           paths <- data.table::data.table(distances = r_upd_dists_wweights_d(from_to, starts_targets, n_cells, update_rst, early_stopping, ncores, pairwise,
-            tr_directed, par_lvl_upd, int_path, double_weights, show_progress, bar_limit))
+            tr_directed, par_lvl_upd, int_path, double_weights, show_progress, bar_limit, from_to_r))
         } else {
           paths <- data.table::data.table(distances = r_upd_dists_wweights_i(from_to, starts_targets, n_cells, update_rst, early_stopping, ncores, pairwise,
-            tr_directed, par_lvl_upd, int_path, signed_weights, show_progress, bar_limit))
+            tr_directed, par_lvl_upd, int_path, signed_weights, show_progress, bar_limit, from_to_r))
         }
       # Without precomputed weights
       } else {
         if(numeric_weights) {
           paths <- data.table::data.table(distances = r_upd_dists_woweights_d(from_to, starts_targets, coords, n_cells, update_rst, lonlat, queen, ncores,
-            par_lvl_upd, pairwise, pre, early_stopping, int_path, double_weights, show_progress, bar_limit, radius2))
+            par_lvl_upd, pairwise, pre, early_stopping, int_path, double_weights, show_progress, bar_limit, radius2, from_to_r))
         } else {
           paths <- data.table::data.table(distances = r_upd_dists_woweights_i(from_to, starts_targets, coords, n_cells, update_rst, lonlat, queen, ncores,
-            par_lvl_upd, pairwise, pre, early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2))
+            par_lvl_upd, pairwise, pre, early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2, from_to_r))
         }
       }
     # Without grid updating
@@ -944,26 +1119,24 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
       if(wweights) {
         if(numeric_weights) {
           paths <- data.table::data.table(distances = r_dists_wweights_d(from_to, starts_targets, n_cells, early_stopping, ncores, tr_directed, pairwise,
-            int_path, double_weights, show_progress, bar_limit))
+            int_path, double_weights, show_progress, bar_limit, from_to_r))
         } else {
           paths <- data.table::data.table(distances = r_dists_wweights_i(from_to, starts_targets, n_cells, early_stopping, ncores, tr_directed, pairwise,
-            int_path, signed_weights, show_progress, bar_limit))
+            int_path, signed_weights, show_progress, bar_limit, from_to_r))
         }
       } else {
         if(numeric_weights) {
           paths <- data.table::data.table(distances = r_dists_woweights_d(from_to, starts_targets, coords, n_cells, lonlat, queen, ncores, pairwise, pre,
-            early_stopping, int_path, double_weights, show_progress, bar_limit, radius2))
+            early_stopping, int_path, double_weights, show_progress, bar_limit, radius2, from_to_r))
         } else {
           paths <- data.table::data.table(distances = r_dists_woweights_i(from_to, starts_targets, coords, n_cells, lonlat, queen, ncores, pairwise, pre,
-            early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2))
+            early_stopping, int_path, signed_weights, show_progress, bar_limit, radius2, from_to_r))
         }
       }
     }
   }
   rm(from_to, starts_targets, update_rst)
   if(output_lines || !wweights) rm(coords)
-  
-  if(show_progress) message("Generating output object")
   
   # Add names
   # Pairwise

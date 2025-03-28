@@ -18,7 +18,7 @@
 Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells, Rcpp::List& upd_rst_r,
   const bool early_stopping, const int ncores, const bool pairwise, const bool directed, const bool par_lvl_upd, const bool int_path,
   const bool numeric_weights, const bool double_weights, const bool signed_weights, const bool return_dists, const bool show_progress,
-  const int bar_limit) {
+  const int bar_limit, const bool from_to_r) {
   // from_to contains a from vector, a to vector, and a weights vector (numeric or integer)
   // coords contains a cell_numbers vector, a double_coords boolean, a ncol integer, and xmin, ymax, xres, and yres doubles or integers
   // starts_targets contains a starts vector, a targets vector, a n_paths_per_start vector, a n_starts integer, and a n_targets integer
@@ -46,8 +46,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<int> targets = get_targets_i(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<int> > upd_rst_c = convert_upd_rst_i(upd_rst_r);
-            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
-            std::vector<std::vector<double> > graph_weights = graph_weights_d(from_to, n_cells);
+            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+            std::vector<std::vector<double> > graph_weights = graph_weights_d(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -61,8 +62,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<int> targets = get_targets_i(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<int> > upd_rst_c = convert_upd_rst_i(upd_rst_r);
-            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
-            std::vector<std::vector<float> > graph_weights = graph_weights_f(from_to, n_cells);
+            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+            std::vector<std::vector<float> > graph_weights = graph_weights_f(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -78,8 +80,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<int> targets = get_targets_i(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<int> > upd_rst_c = convert_upd_rst_i(upd_rst_r);
-            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
-            std::vector<std::vector<int> > graph_weights = graph_weights_i(from_to, n_cells);
+            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+            std::vector<std::vector<int> > graph_weights = graph_weights_i(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -93,8 +96,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<int> targets = get_targets_i(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<int> > upd_rst_c = convert_upd_rst_i(upd_rst_r);
-            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
-            std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(from_to, n_cells);
+            const std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+            std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -118,8 +122,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<unsigned short int> > upd_rst_c = convert_upd_rst_u(upd_rst_r);
-            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
-            std::vector<std::vector<double> > graph_weights = graph_weights_d(from_to, n_cells);
+            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+            std::vector<std::vector<double> > graph_weights = graph_weights_d(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -133,8 +138,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<unsigned short int> > upd_rst_c = convert_upd_rst_u(upd_rst_r);
-            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
-            std::vector<std::vector<float> > graph_weights = graph_weights_f(from_to, n_cells);
+            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+            std::vector<std::vector<float> > graph_weights = graph_weights_f(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -150,8 +156,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<unsigned short int> > upd_rst_c = convert_upd_rst_u(upd_rst_r);
-            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
-            std::vector<std::vector<int> > graph_weights = graph_weights_i(from_to, n_cells);
+            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+            std::vector<std::vector<int> > graph_weights = graph_weights_i(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }
@@ -165,8 +172,9 @@ Rcpp::List r_upd_paths_wweights(Rcpp::List& from_to, Rcpp::List& starts_targets,
             const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
             const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), (targets.empty() && !directed), pairwise);
             std::vector<std::unordered_set<unsigned short int> > upd_rst_c = convert_upd_rst_u(upd_rst_r);
-            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
-            std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(from_to, n_cells);
+            const std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+            std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(from_to, n_cells, int_path, from_to_r);
+            from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
             upd_paths_wweights(graph_to, graph_weights, n_cells, starts, targets, starting_indices, pairwise, directed, early_stopping, ncores, par_lvl_upd,
               upd_rst_c, show_progress, bar_limit, static_paths, upd_paths, distances);
           }

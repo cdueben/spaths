@@ -41,3 +41,6 @@ spherical assumption is common in GIS functions, but deviates from Earth's exact
 rnd_locations(1000)
 
 }
+\seealso{
+\link{shortest_paths}.
+}

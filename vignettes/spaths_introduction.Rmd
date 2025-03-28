@@ -57,31 +57,9 @@ knitr::include_graphics("Figure_2.png")
 ```
 <br>
 
-<p style="text-align: justify">`spaths` defaults to the fastest ways of deriving geographic distances. It uses optimized Haversine distance computations for unprojected data on Earth or other spherical objects and optimized Euclidean distance computations for planar data. If you want account for Earth's ellipsoid shape rather than working with spherical distances and computational efficiency is not a top priority, set `dist_comp` to `"terra"`, which derives distances via `terra::distance`. `terra` is a great and performant package. What makes the `"terra"` option slower than `"spaths"` in `dist_comp` is that it triggers the function to derive distances between all neighboring cells separately and export them from R to C++ while the latter choice computes them in a way tailored to this application in the graph construction phase in C++. This implementation e.g. leverages the occurrence of repeated distance values in gridded data.</p>
+<p style="text-align: justify">`spaths` defaults to the fastest ways of deriving geographic distances. It uses optimized Haversine distance computations for unprojected data on Earth or other spherical objects and optimized Euclidean distance computations for planar data. If you want account for Earth's ellipsoid shape rather than working with spherical distances and computational efficiency is not a top priority, set `dist_comp` to `"terra"`, which derives distances via `terra::distance`. `terra` is a great and performant package. What makes the `"terra"` option slower than `"spaths"` in `dist_comp` is that it triggers the function to derive distances between all neighboring cells separately and export them from R to C++, while the latter choice computes them in a way tailored to this application in the graph construction phase in C++. This implementation e.g. leverages the occurrence of repeated distance values in gridded data.</p>
 
-<p style="text-align: justify">Edge weights do not have to be geographic straight line distances between cell centroids. With a custom transition function passed to `tr_fun`, you can freely define them in a different way. In this function, you may use the parameters `d` (distance between the pixel centroids), `x1` (x coordinate or longitude of the first cell), `x2` (x coordinate or longitude of the second cell), `y1` (y coordinate or latitude of the first cell), `y2` (y coordinate or latitude of the second cell), `v1` (`rst` layers' values from the first cell), `v2` (`rst` layers' values from the second cell), and `nc` (number of CPU cores set by `ncores`). The algorithm moves from the first to the neighboring second cell. If the data is unprojected, i.e. lonlat, or if `dist_comp = "terra"`, `d` is measured in meters. Otherwise, it uses the units of the CRS. If `rst` has one layer, the values are passed to `v1` and `v2` as vectors. Otherwise they are passed as a data table, if `v_matrix` is `FALSE` (default), and as a matrix, if `v_matrix` is `TRUE`. The function has to be callable from R, but does not have to be written in R. It can e.g. be a C++ function implemented via the `Rcpp` package.</p>
-
-<p style="text-align: justify">A common transition function is Tobler's [-@Tobler1993] hiking function. It estimates the travel time between locations conditional on terrain topography. To illustrate this use case, imagine that the input grid is a digital elevation model. It consists of one layer and the pixel values document the location's elevation in meters. This `tr_fun` function then expresses the transition cost in terms of the hours it takes to travel between cell centroids according to Tobler: `function(d, v1, v2) d / (6000 * exp(-3.5 * abs((v2 - v1) / d + 0.05)))`. It combines the straight line distance in meters `d` with the altitude difference, i.e. the value of the second cell `v2` minus the value of the first cell `v1`. Tobler's [-@Tobler1993] hiking function produces asymmetric edge weights. Walking uphill is not equally fast as walking downhill. This results in a directed graph, meaning transition cost depends on the direction in which the algorithm traverses between grid cells. So, the `tr_directed` argument has to be `TRUE`.</p>
-
-<p style="text-align: justify">With transition functions generating symmetric edge weights, `tr_directed` should always be set to `FALSE`, improving computational performance. Tobler's [-@Tobler1993] function would e.g. produce symmetric transition costs in the absence of the `+ 0.05`. The `tr_directed` parameter only has an effect in the presence of custom transition functions, i.e. if `tr_fun` is not `NULL`. Otherwise, the graph is always undirected.</p>
-
-<p style="text-align: justify">As already mentioned, `spaths` is not restricted to geographic applications. Here is an arbitrary transition function combining various layers of `rst`: `function(v1, v2) v1[[1L]] * v2[[1L]] + v1[[2L]] * v2[[2L]]`. This multiplies the first cell's value in the first layer with the second cell's value in the first layer and adds it to the cells' second layer product.</p>
-
-<p style="text-align: justify">It is recommended to use vectorized R functions like the ones above. It computes all edge weights without explicitly calling an iterative structure like `for`, `*apply`, or `foreach` loops. R loops are slow. If your function requires a loop, write it in C++. Here is an example with `v_matrix = TRUE`, the Armadillo C++ library, C++ 20, and `...` as a placeholder for the function body:</p>
-
-```{r, eval = FALSE}
-Rcpp::sourceCpp(code = '
-  #include <RcppArmadillo.h>
-  // [[Rcpp::depends(RcppArmadillo)]]
-  // [[Rcpp::plugins(cpp20)]]
-  
-  // [[Rcpp::export]]
-  Rcpp::NumericVector example_tr_fun(arma::mat &v1, arma::mat &v2, Rcpp::NumericVector &d) {
-    ...
-  }
-')
-```
-<br>
+<p style="text-align: justify">Edge weights do not have to be geographic straight line distances between cell centroids. Read the [transition functions vignette](spaths_introduction.html) on how to define and insert custom transition functions.</p>
 
 # Output
 <p style="text-align: justify">By default, `shortest_paths` returns distances. These distances are the sum of edge weights along the shortest paths between points. Without a custom transition function, it is the geographic distance between the centroids of the cells on a path between two points. It is the length of the path in meters, unless you use a projection with different units. With a custom transition function, the distance or length of the path is expressed in whatever units the transition function returns, such as hours of travel time with Tobler's [-@Tobler1993] hiking function.</p>
@@ -402,6 +380,9 @@ Generating output object
 
 ## What object classes should I use for the inputs?
 <p style="text-align: justify">The recommendation is to use SpatRaster `rst`, SpatVector `origins` (and SpatVector `destinations`) objects when handling locations on Earth. The other classes also work, but the recommended classes tend to be the most appropriate in that they require little conversion and return output in a convenient format. If the data do not represent locations on Earth, you need to use a matrix or list of matrices as `rst` with a matrix or a data frame as `origins` (and `destinations`). Unlike a matrix, a data frame accepts `origin_names` and `destination_names` columns of a different type than the coordinates.</p>
+
+## What does a `std::bad_alloc` error mean?
+<p style="text-align: justify">It means that your machine does not have enough RAM to allocate the data.</p>
 
 ## What features will be added in the next updates?
 <p style="text-align: justify">The next features include alternative shortest paths algorithms, beyond Dijkstra's algorithm, and centrality measures. In the respective categories, the A* algorithm and closeness centrality will be first. How long it will take to publish these updates depends on the maintainer's academic career prospects.</p>

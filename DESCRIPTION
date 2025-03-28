@@ -1,7 +1,7 @@
 Package: spaths
 Type: Package
 Title: Shortest Paths Between Points in Grids
-Version: 1.1.4
+Version: 1.1.5
 Authors@R: person("Christian", "Düben", email = "cdueben.ml+cran@proton.me", role = c("aut", "cre"))
 Description: Shortest paths between points in grids. Optional barriers and custom transition functions. Applications regarding planet Earth, as well as 
   generally spheres and planes. Optimized for computational performance, customizability, and user friendliness. Graph-theoretical implementation tailored 
@@ -19,5 +19,5 @@ Suggests:
     rmarkdown,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 Config/testthat/edition: 3

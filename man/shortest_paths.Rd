@@ -2,7 +2,7 @@
 % Please edit documentation in R/shortest_paths.R
 \name{shortest_paths}
 \alias{shortest_paths}
-\title{Shortest Paths and/ or Distances between Locations}
+\title{Shortest paths and/ or distances between locations}
 \usage{
 shortest_paths(
   rst,
@@ -35,196 +35,205 @@ shortest_paths(
 )
 }
 \arguments{
-\item{rst}{SpatRaster (terra), RasterLayer (raster), matrix, or list of matrices object. RasterLayers are converted to SpatRasters. Pixels with non-NA 
+\item{rst}{SpatRaster (terra), RasterLayer (raster), matrix, or list of matrices object. RasterLayers are converted to SpatRasters. Pixels with non-NA
 values in all layers mark the cells through which the algorithm may pass. The values of \code{rst} can be accessed in \code{tr_fun}.}
 
-\item{origins}{Origin points at which the shortest paths start. If \code{rst} is a SpatRaster or RasterLayer object, these points can be passed as a 
-single SpatVector (terra), sf (sf), or Spatial* (sp) object. sf and sp objects are converted to SpatVectors. Polygons and lines are converted to points 
-using their centroid. If \code{rst} is a matrix or list of matrices, \code{origins} must be a single matrix, data.frame, or data.table of coordinates 
-with columns named \code{"x"} and \code{"y"}. The coordinates must refer to points in the reference system that \code{rst} utilizes. Lines and 
+\item{origins}{Origin points at which the shortest paths start. If \code{rst} is a SpatRaster or RasterLayer object, these points can be passed as a
+single SpatVector (terra), sf (sf), or Spatial* (sp) object. sf and sp objects are converted to SpatVectors. Polygons and lines are converted to points
+using their centroid. If \code{rst} is a matrix or list of matrices, \code{origins} must be a single matrix, data.frame, or data.table of coordinates
+with columns named \code{"x"} and \code{"y"}. The coordinates must refer to points in the reference system that \code{rst} utilizes. Lines and
 polygons are thus not accepted in this case. Details on which points the function connects are outlined below.}
 
-\item{destinations}{Destination points to which the shortest paths are derived. It defaults to \code{NULL}, resulting in the function to compute 
-shortest paths between the \code{origins} points. Otherwise, the same input rules as for \code{origins} apply. Details on which points the function 
+\item{destinations}{Destination points to which the shortest paths are derived. It defaults to \code{NULL}, resulting in the function to compute
+shortest paths between the \code{origins} points. Otherwise, the same input rules as for \code{origins} apply. Details on which points the function
 connects are outlined below.}
 
-\item{output}{\code{"distances"} (default), \code{"lines"}, or \code{"both"}. \code{"distances"} lists the total transition costs along the shortest 
-paths. By default, it is the distance between origin and destination in meters, if \code{rst} is an unprojected SpatRaster or RasterLayer or if 
-\code{dist_comp = "terra"}. Otherwise, it is denoted in the projection's units. If you pass another function to \code{tr_fun}, the total transition cost 
-is measured in the units of \code{tr_fun}'s results. \code{"lines"} returns the shortest paths as spatial lines. \code{"both"} returns both distances 
+\item{output}{\code{"distances"} (default), \code{"lines"}, or \code{"both"}. \code{"distances"} lists the total transition costs along the shortest
+paths. By default, it is the distance between origin and destination in meters, if \code{rst} is an unprojected SpatRaster or RasterLayer or if
+\code{dist_comp = "terra"}. Otherwise, it is denoted in the projection's units. If you pass another function to \code{tr_fun}, the total transition cost
+is measured in the units of \code{tr_fun}'s results. \code{"lines"} returns the shortest paths as spatial lines. \code{"both"} returns both distances
 and lines. \code{"distances"} is faster and requires less RAM than \code{"lines"} or \code{"both"}.}
 
-\item{output_class}{Class of the returned object. With \code{output = "distances"}, the options are \code{"data.table"} (default) and 
-\code{"data.frame"}. With \code{output = "lines"} or \code{output = "both"}, the options are \code{"SpatVector"} (default when \code{rst} is a 
-SpatRaster or RasterLayer) and \code{"list"} (default when \code{rst} is a matrix or a list of matrices). In the case of \code{"list"}, the attributes, 
-the line coordinates, and the CRS are returned as individual list elements. The first element in the list of line coordinates refers to the first row in 
-the attributes table etc. \code{"SpatVector"} is only available with a SpatRaster or RasterLayer \code{rst}. \code{output_class} changes the format of 
+\item{output_class}{Class of the returned object. With \code{output = "distances"}, the options are \code{"data.table"} (default) and
+\code{"data.frame"}. With \code{output = "lines"} or \code{output = "both"}, the options are \code{"SpatVector"} (default when \code{rst} is a
+SpatRaster or RasterLayer) and \code{"list"} (default when \code{rst} is a matrix or a list of matrices). In the case of \code{"list"}, the attributes,
+the line coordinates, and the CRS are returned as individual list elements. The first element in the list of line coordinates refers to the first row in
+the attributes table etc. \code{"SpatVector"} is only available with a SpatRaster or RasterLayer \code{rst}. \code{output_class} changes the format of
 the returned object, not the information it contains.}
 
-\item{origin_names}{Character specifying the name of the column in the \code{origins} object used to label the origins in the output object. It 
+\item{origin_names}{Character specifying the name of the column in the \code{origins} object used to label the origins in the output object. It
 defaults to row numbers.}
 
-\item{destination_names}{Character specifying the name of the column in the \code{destinations} object used to label the destinations in the output 
+\item{destination_names}{Character specifying the name of the column in the \code{destinations} object used to label the destinations in the output
 object. It defaults to row numbers.}
 
-\item{pairwise}{Logical specifying whether to compute pairwise paths, if \code{origins} and \code{destinations} have equally many rows. If \code{TRUE}, 
-the function computes the shortest path between the first origin and the first destination, the second origin and the second destination, etc. 
-Otherwise, it derives the shortest paths from all origins to all destinations. \code{pairwise = TRUE} can alter the order in which results are returned. 
+\item{pairwise}{Logical specifying whether to compute pairwise paths, if \code{origins} and \code{destinations} have equally many rows. If \code{TRUE},
+the function computes the shortest path between the first origin and the first destination, the second origin and the second destination, etc.
+Otherwise, it derives the shortest paths from all origins to all destinations. \code{pairwise = TRUE} can alter the order in which results are returned.
 Check the output's origins and destinations columns for the respective order.}
 
-\item{contiguity}{\code{"queen"} (default) for queen's case contiguity or \code{"rook"} for rook's case contiguity. In the latter case, the algorithm 
-only moves between horizontally or vertically adjacent cells. In the former case, it is also travels between diagonally adjacent cells. \code{"rook"} is 
+\item{contiguity}{\code{"queen"} (default) for queen's case contiguity or \code{"rook"} for rook's case contiguity. In the latter case, the algorithm
+only moves between horizontally or vertically adjacent cells. In the former case, it is also travels between diagonally adjacent cells. \code{"rook"} is
 more efficient than \code{"queen"} as it implies fewer edges.}
 
-\item{spherical}{Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g. a planet, if \code{rst} is a matrix or 
-a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This 
+\item{spherical}{Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g. a planet, if \code{rst} is a matrix or
+a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This
 argument has no effect when \code{rst} is a SpatRaster or RasterLayer.}
 
 \item{radius}{Radius of the object, e.g. planet, if \code{spherical = TRUE}. This argument has no effect when \code{rst} is a SpatRaster or RasterLayer.}
 
-\item{extent}{Vector of length 4, specifying the extent of \code{rst}, if \code{rst} is a matrix or a list of matrices. It must contain xmin, xmax, 
+\item{extent}{Vector of length 4, specifying the extent of \code{rst}, if \code{rst} is a matrix or a list of matrices. It must contain xmin, xmax,
 ymin, and ymax, in that order. The argument has no effect when \code{rst} is a SpatRaster or RasterLayer.}
 
-\item{dist_comp}{Method to compute distances between adjacent cells. \code{"spaths"} (default) or \code{"terra"}. The default \code{"spaths"} uses 
-spherical (Haversine) distances in case of lonlat data and planar (Euclidean) distances in case of projected (non-lonlat) data. The functions are 
-optimized based on the fact that many inter-pixel distances are identical. Modelling the planet as a perfect sphere is in line with e.g. the s2 package, 
-but is of course an oversimplification. With \code{"terra"}, the function derives distances via \code{terra::distance}. Because this computes all 
-inter-pixel distances separately, it is slower than the \code{"spaths"} approach. It does take the non-spherical nature of the planet into account 
+\item{dist_comp}{Method to compute distances between adjacent cells. \code{"spaths"} (default) or \code{"terra"}. The default \code{"spaths"} uses
+spherical (Haversine) distances in case of lonlat data and planar (Euclidean) distances in case of projected (non-lonlat) data. The functions are
+optimized based on the fact that many inter-pixel distances are identical. Modelling the planet as a perfect sphere is in line with e.g. the s2 package,
+but is of course an oversimplification. With \code{"terra"}, the function derives distances via \code{terra::distance}. Because this computes all
+inter-pixel distances separately, it is slower than the \code{"spaths"} approach. It does take the non-spherical nature of the planet into account
 though. With \code{tr_fun}, you can specify a custom distance function that uses neither \code{"spaths"} nor \code{"terra"} distances.}
 
-\item{tr_fun}{The transition function based on which to compute edge weights, i.e. the travel cost between adjacent grid cells. Defaults to the 
-geographic distance between pixel centroids. Permitted function parameter names are \code{d} (distance between the pixel centroids), \code{x1} (x 
-coordinate or longitude of the first cell), \code{x2} (x coordinate or longitude of the second cell), \code{y1} (y coordinate or latitude of the first cell), 
-\code{y2} (y coordinate or latitude of the second cell), \code{v1} (\code{rst} layers' values from the first cell), \code{v2} (\code{rst} layers' 
-values from the second cell), and \code{nc} (number of CPU cores according to the \code{ncores} argument). If the data is unprojected, i.e. lonlat, or 
-if \code{dist_comp = "terra"}, \code{d} is measured in meters. Otherwise, it uses the units of the CRS. If \code{rst} has one layer, the values are 
-passed to \code{v1} and \code{v2} as vectors, otherwise they are passed as a data table where the first column refers to the first layer, the second 
-column to the second layer etc. Note that data tables are data frames.}
+\item{tr_fun}{The transition function based on which to compute edge weights, i.e. the travel cost between adjacent grid cells. Defaults to the
+geographic distance between pixel centroids. Permitted function parameter names are \code{d} (distance between the pixel centroids), \code{x1} (x
+coordinate or longitude of the first cell), \code{x2} (x coordinate or longitude of the second cell), \code{y1} (y coordinate or latitude of the first
+cell), \code{y2} (y coordinate or latitude of the second cell), \code{v1} (\code{rst} layers' values from the first cell), \code{v2} (\code{rst} layers'
+values from the second cell), and \code{nc} (number of CPU cores according to the \code{ncores} argument). If the data is unprojected, i.e. lonlat, or
+if \code{dist_comp = "terra"}, \code{d} is measured in meters. Otherwise, it uses the units of the CRS. If \code{rst} has one layer, the values are
+passed to \code{v1} and \code{v2} as vectors, otherwise they are passed as a data table where the first column refers to the first layer, the second
+column to the second layer etc. Note that data tables are data frames. If \code{rst} produces a graph with more than
+2,147,483,647 edges, the adjacency list cannot be stored in R and any \code{tr_fun} needs to be written in C++ with
+a few additional requirements. See the details below.}
 
-\item{v_matrix}{Logical specifying whether to pass values to \code{v1} and \code{v2} in \code{tr_fun} as matrices (\code{TRUE}) instead of data tables 
-in the multi-layer case and vectors in the single-layer case (\code{FALSE}). It defaults to \code{FALSE}. Setting it to \code{TRUE} might e.g. be 
+\item{v_matrix}{Logical specifying whether to pass values to \code{v1} and \code{v2} in \code{tr_fun} as matrices (\code{TRUE}) instead of data tables
+in the multi-layer case and vectors in the single-layer case (\code{FALSE}). It defaults to \code{FALSE}. Setting it to \code{TRUE} might, e.g., be
 useful when defining \code{tr_fun} as a C++ Armadillo function.}
 
-\item{tr_directed}{Logical specifying whether \code{tr_fun} creates a directed graph. In a directed graph, transition costs can be asymmetric. 
-Traveling from cells A to B may imply a different cost than traveling from B to A. It defaults to \code{TRUE} and only has an effect when 
+\item{tr_directed}{Logical specifying whether \code{tr_fun} creates a directed graph. In a directed graph, transition costs can be asymmetric.
+Traveling from cells A to B may imply a different cost than traveling from B to A. It defaults to \code{TRUE} and only has an effect when
 \code{tr_fun} is not \code{NULL}. The default without \code{tr_fun} constructs an undirected graph.}
 
-\item{pre}{Logical specifying whether to compute the distances between neighboring cells before executing the shortest paths algorithm in C++. 
-\code{pre} only has an effect, when no \code{tr_fun} is specified and \code{dist_comp = "spaths"}, as the distances are otherwise imported from R. 
-\code{TRUE} (default) is in the vast majority of cases faster than \code{FALSE}. \code{FALSE} computes distances between neighboring cells while the 
-shortest paths algorithm traverses the graph. This requires less RAM, but is slower than \code{TRUE}, unless \code{early_stopping = TRUE} and all points 
+\item{pre}{Logical specifying whether to compute the distances between neighboring cells before executing the shortest paths algorithm in C++.
+\code{pre} only has an effect, when no \code{tr_fun} is specified and \code{dist_comp = "spaths"}, as the distances are otherwise imported from R.
+\code{TRUE} (default) is in the vast majority of cases faster than \code{FALSE}. \code{FALSE} computes distances between neighboring cells while the
+shortest paths algorithm traverses the graph. This requires less RAM, but is slower than \code{TRUE}, unless \code{early_stopping = TRUE} and all points
 are close to each other. \code{TRUE}'s speed advantage is even larger, when \code{update_rst} is not \code{NULL}.}
 
-\item{early_stopping}{Logical specifying whether to stop the shortest path algorithm once the target cells are reached. It defaults to \code{TRUE}, 
-which can be faster than \code{FALSE}, if the points are close to each other compared to the full set of \code{rst} cells. If at least one points 
-pair is far from each other, \code{FALSE} is the faster setting. \code{FALSE} computes the distance to all cells and then extracts the distance to the 
-target cells. It, therefore, does not check for each visited cell, whether it is in the set of targets. \code{TRUE} and \code{FALSE} produce the same 
+\item{early_stopping}{Logical specifying whether to stop the shortest path algorithm once the target cells are reached. It defaults to \code{TRUE},
+which can be faster than \code{FALSE}, if the points are close to each other compared to the full set of \code{rst} cells. If at least one points
+pair is far from each other, \code{FALSE} is the faster setting. \code{FALSE} computes the distance to all cells and then extracts the distance to the
+target cells. It, therefore, does not check for each visited cell, whether it is in the set of targets. \code{TRUE} and \code{FALSE} produce the same
 result and only differ in terms of computational performance.}
 
-\item{bidirectional}{Logical specifying whether to produce paths or distances in both directions, if destinations are not specified and no directed 
-transition function is given. In that case, the distance and the path from point A to point B is the same as the distance and path from point B to point 
-A. \code{FALSE} (default) only returns distances or paths in one direction. Declaring \code{TRUE} returns distances or paths in both directions. This 
-parameter's objective is to control the return object's RAM requirement. It only has an effect, if destinations are not specified and no directed 
+\item{bidirectional}{Logical specifying whether to produce paths or distances in both directions, if destinations are not specified and no directed
+transition function is given. In that case, the distance and the path from point A to point B is the same as the distance and path from point B to point
+A. \code{FALSE} (default) only returns distances or paths in one direction. Declaring \code{TRUE} returns distances or paths in both directions. This
+parameter's objective is to control the return object's RAM requirement. It only has an effect, if destinations are not specified and no directed
 transition function is given.}
 
-\item{update_rst}{Object updating \code{rst} with moving barriers. It defaults to \code{NULL}, corresponding to \code{rst} not being updated. If 
-\code{rst} is a SpatRaster or RasterLayer, \code{update_rst} can be a SpatVector (terra), sf (sf), or Spatial* (sp) object, or a list of them. sf and sp 
-objects are converted to SpatVectors. The function updates \code{rst} by setting any cell intersecting with \code{update_rst} to NA, thereby not 
-allowing the shortest paths algorithm to pass through that cell. \code{update_rst} only sets non-NA cells to NA, not vice versa. The elements of 
-\code{update_rst} always update the unmodified \code{rst}. I.e. if \code{update_rst} is a list of two polygons, the shortest paths are derived three 
-times: once based on the not updated \code{rst}, denoted layer 0 in the output, once based on \code{rst} updated with the first polygon, referred to as 
-layer 1, and once based on \code{rst} updated with the second polygon, termed layer 2. The second polygon updates the unmodified \code{rst}, not the 
-\code{rst} updated by the first polygon. If \code{rst} is a matrix or a list of matrices, \code{update_rst} can be a vector of cell numbers, a matrix, 
-or a list of either. Analogously to the SpatRaster case, these objects mark which cells to set to NA. As in terra, cell numbers start with 1 in the top 
-left corner and then increase first from left to right and then from top to bottom. The cell numbers in the vector and the NA cells in the matrix 
+\item{update_rst}{Object updating \code{rst} with moving barriers. It defaults to \code{NULL}, corresponding to \code{rst} not being updated. If
+\code{rst} is a SpatRaster or RasterLayer, \code{update_rst} can be a SpatVector (terra), sf (sf), or Spatial* (sp) object, or a list of them. sf and sp
+objects are converted to SpatVectors. The function updates \code{rst} by setting any cell intersecting with \code{update_rst} to NA, thereby not
+allowing the shortest paths algorithm to pass through that cell. \code{update_rst} only sets non-NA cells to NA, not vice versa. The elements of
+\code{update_rst} always update the unmodified \code{rst}. I.e. if \code{update_rst} is a list of two polygons, the shortest paths are derived three
+times: once based on the not updated \code{rst}, denoted layer 0 in the output, once based on \code{rst} updated with the first polygon, referred to as
+layer 1, and once based on \code{rst} updated with the second polygon, termed layer 2. The second polygon updates the unmodified \code{rst}, not the
+\code{rst} updated by the first polygon. If \code{rst} is a matrix or a list of matrices, \code{update_rst} can be a vector of cell numbers, a matrix,
+or a list of either. Analogously to the SpatRaster case, these objects mark which cells to set to NA. As in terra, cell numbers start with 1 in the top
+left corner and then increase first from left to right and then from top to bottom. The cell numbers in the vector and the NA cells in the matrix
 identify the pixels to set to NA. Accordingly, the matrix is of equal dimensions as \code{rst}.}
 
-\item{touches}{Logical specifying the \code{touches} argument of \code{terra::extract} used when \code{update_rst} is a SpatVector, sf, or Spatial* 
+\item{touches}{Logical specifying the \code{touches} argument of \code{terra::extract} used when \code{update_rst} is a SpatVector, sf, or Spatial*
 object. It defaults to \code{TRUE}. If \code{FALSE}, the function only removes cells on the line render path or with the center point inside a polygon.}
 
-\item{ncores}{An integer specifying the number of CPU cores to use. It defaults to the number of cores installed on the machine. A value of 1 induces a 
+\item{ncores}{An integer specifying the number of CPU cores to use. It defaults to the number of cores installed on the machine. A value of 1 induces a
 single-threaded process.}
 
-\item{par_lvl}{\code{"points"} or \code{"update_rst"}, indicating the level at which to parallelize when using multiple cores and \code{update_rst} is a 
-list. \code{"points"} parallelizes over the origin (and destination) point combinations in both the base grid not updated by \code{update_rst} and the 
-grids updated with \code{update_rst}. The default \code{"update_rst"} is equivalent to \code{"points"} in the base grid, but parallelizes at the 
+\item{par_lvl}{\code{"points"} or \code{"update_rst"}, indicating the level at which to parallelize when using multiple cores and \code{update_rst} is a
+list. \code{"points"} parallelizes over the origin (and destination) point combinations in both the base grid not updated by \code{update_rst} and the
+grids updated with \code{update_rst}. The default \code{"update_rst"} is equivalent to \code{"points"} in the base grid, but parallelizes at the
 \code{update_rst} list level in the updated grid stage.}
 
 \item{show_progress}{Logical specifying whether the function prints messages on progress. It defaults to \code{FALSE}.}
 
-\item{bar_limit}{Integer specifying until up to how many paths or list elements of \code{update_rst} to display a progress bar, if 
-\code{show_progress = TRUE}. It defaults to 150, in which case the function prints one \code{=} per computed path, if there are no more than 150 paths 
-requested. In the grids updated with \code{update_rst}, the function displays one \code{=} per processed \code{update_rst} list element, not per path. 
-In parallel applications, the progress bar can notably slow the execution as the functions only permit one thread to write to output at a time. Do not 
+\item{bar_limit}{Integer specifying until up to how many paths or list elements of \code{update_rst} to display a progress bar, if
+\code{show_progress = TRUE}. It defaults to 150, in which case the function prints one \code{=} per computed path, if there are no more than 150 paths
+requested. In the grids updated with \code{update_rst}, the function displays one \code{=} per processed \code{update_rst} list element, not per path.
+In parallel applications, the progress bar can notably slow the execution as the functions only permit one thread to write to output at a time. Do not
 set the argument too high to avoid R crashes from text buffer overflows.}
 
-\item{path_type}{Data type with which C++ stores cell numbers. \code{"int"} (default) is the 4 byte signed integers that R also uses and is the fastest 
-option. \code{"unsigned short int"} is a 2 byte unsigned integer which requires less RAM than \code{"int"}, but only works if there are less than 65,535 
+\item{path_type}{Data type with which C++ stores cell numbers. \code{"int"} (default) is the 4 byte signed integers that R also uses and is the fastest
+option. \code{"unsigned short int"} is a 2 byte unsigned integer which requires less RAM than \code{"int"}, but only works if there are less than 65,535
 non-NA cells and is comparatively slower because it requires type conversions.}
 
-\item{distance_type}{Data type with which C++ stores distances. \code{"double"} (default) is a double precision 8 byte floating point number. It is the 
-fastest and most precise option and also used by R as its \code{numeric} data type. \code{"float"} is a single precision 4 byte floating point number, 
-which stores decimal values less precisely than \code{"double"} does and is comparatively slower because it requires type conversions. \code{"int"} and 
-\code{"unsigned short int"} are the integer types described in the \code{path_type} documentation above. With \code{"int"} and 
-\code{"unsigned short int"}, distances are rounded to integers. When employing these integers types, the distance between any cells in \code{rst}, not 
-just the cells of interest, must not exceed 2,147,483,647 and 65,535 respectively. The distance difference caused by rounding double values to another 
-type can accumulate along the shortest paths and can result in notable distance deviation in the output. The recommendations is to stick with the 
+\item{distance_type}{Data type with which C++ stores distances. \code{"double"} (default) is a double precision 8 byte floating point number. It is the
+fastest and most precise option and also used by R as its \code{numeric} data type. \code{"float"} is a single precision 4 byte floating point number,
+which stores decimal values less precisely than \code{"double"} does and is comparatively slower because it requires type conversions. \code{"int"} and
+\code{"unsigned short int"} are the integer types described in the \code{path_type} documentation above. With \code{"int"} and
+\code{"unsigned short int"}, distances are rounded to integers. When employing these integers types, the distance between any cells in \code{rst}, not
+just the cells of interest, must not exceed 2,147,483,647 and 65,535 respectively. The distance difference caused by rounding double values to another
+type can accumulate along the shortest paths and can result in notable distance deviation in the output. The recommendations is to stick with the
 default \code{"double"} unless the machine does not have enough RAM to run the function otherwise.}
 }
 \value{
-If `output = "distances"`, the output is by default returned as a data table. If you want the result to be a data frame only, not a data table, 
-set `output_class` to `"data.frame"`. If `output` is `"lines"` or `"both"`, the the function returns a SpatVector, if `rst` is a SpatRaster or a 
-RasterLayer, and a list, if `rst` is a matrix or a list of matrices. Explicitly setting `output_class` to `"list"` returns a list in any case. 
-`output_class = "SpatVector"`, however, returns a SpatVector only if `rst` is a SpatRaster or a RasterLayer.
+If \code{output = "distances"}, the output is by default returned as a data table. If you want the result to be a data frame only, not a data table,
+set \code{output_class} to \code{"data.frame"}. If \code{output} is \code{"lines"} or \code{"both"}, the the function returns a SpatVector, if \code{rst} is a SpatRaster or a
+RasterLayer, and a list, if \code{rst} is a matrix or a list of matrices. Explicitly setting \code{output_class} to \code{"list"} returns a list in any case.
+\code{output_class = "SpatVector"}, however, returns a SpatVector only if \code{rst} is a SpatRaster or a RasterLayer.
 
-If \code{output = "distances"} or \code{output = "both"}, the \code{distances} variable marks which points are connected. Unconnected point pairs have 
-an \code{Inf} distance, if \code{distance_type = "double"} or \code{distance_type = "float"}, and an NA distance, if \code{distance_type = "int"} or 
-\code{distance_type = "unsigned short int"}. If \code{output = "lines"}, the \code{connected} variable marks which points are connected. Points are 
+If \code{output = "distances"} or \code{output = "both"}, the \code{distances} variable marks which points are connected. Unconnected point pairs have
+an \code{Inf} distance, if \code{distance_type = "double"} or \code{distance_type = "float"}, and an NA distance, if \code{distance_type = "int"} or
+\code{distance_type = "unsigned short int"}. If \code{output = "lines"}, the \code{connected} variable marks which points are connected. Points are
 connected, when it is possible to travel between them via non-NA cells in \code{rst}.
 }
 \description{
 The shortest paths and/ or distance between locations in a grid according to Dijkstra's (1959) algorithm.
 }
 \details{
-This function computes shortest paths and/ or distance between locations in a grid using Dijkstra's algorithm. Examples are a ship navigating 
+This function computes shortest paths and/ or distance between locations in a grid using Dijkstra's algorithm. Examples are a ship navigating
 around land masses or a hiker traversing mountains.
 
-Let us explore the ship example to illustrate how \code{shortest_paths} works. To compute shortest paths between ports around the world, you start with 
-a global SpatRaster, in which all land pixels are set to NA and all ocean pixels are set a non-NA value, e.g. 1. A SpatVector marks port locations as 
-points on water pixels. Passing these two objects to the parameters \code{rst} and \code{origins} respectively derives the shortest paths from each port 
-to all other ports conditional on ships solely traversing water pixels and returns the distances, i.e. lengths of these paths. If you are not interested 
+Let us explore the ship example to illustrate how \code{shortest_paths} works. To compute shortest paths between ports around the world, you start with
+a global SpatRaster, in which all land pixels are set to NA and all ocean pixels are set a non-NA value, e.g. 1. A SpatVector marks port locations as
+points on water pixels. Passing these two objects to the parameters \code{rst} and \code{origins} respectively derives the shortest paths from each port
+to all other ports conditional on ships solely traversing water pixels and returns the distances, i.e. lengths of these paths. If you are not interested
 in the distances, but in the spatial lines themselves, set \code{output} to \code{"lines"}. If you want to obtain both, set it to \code{"both"}.
 
-In a different application, you do not want to compute the paths between all ports, but only the paths between the ports on the northern hemisphere and 
-the ports on the southern hemisphere, but not the paths between ports within the same hemisphere. To assess this, you split the ports into two 
-SpatVectors and pass them to \code{origins} and \code{destinations} respectively. What if you do not want to connect all orgins to all destinations? Set 
+In a different application, you do not want to compute the paths between all ports, but only the paths between the ports on the northern hemisphere and
+the ports on the southern hemisphere, but not the paths between ports within the same hemisphere. To assess this, you split the ports into two
+SpatVectors and pass them to \code{origins} and \code{destinations} respectively. What if you do not want to connect all orgins to all destinations? Set
 \code{pairwise} to \code{TRUE} to connect the first origin just to the first destination, the second origin to the second destination, etc.
 
-By default, the distance or transition cost between adjacent cells of the input grid is the geographic distance between the cells' centroids. What if 
-the boat is a sailing vessel that minimizes travel time conditional on wind speed, wind direction, and ocean currents? Construct a SpatRaster with 
-three layers containing information on the three variables respectively. Define a transition function that combines the three layers into a travel time 
-measure and pass the SpatRaster to \code{rst} and this function to \code{tr_fun}. \code{tr_fun} makes this package very versatile. With custom 
-transition functions, you can take this software out of the geo-spatial context and e.g. apply it to biomedical research.
+By default, the distance or transition cost between adjacent cells of the input grid is the geographic distance between the cells' centroids. What if
+the boat is a sailing vessel that minimizes travel time conditional on wind speed, wind direction, and ocean currents? Construct a SpatRaster with
+three layers containing information on the three variables respectively. Define a transition function that combines the three layers into a travel time
+measure and pass the SpatRaster to \code{rst} and this function to \code{tr_fun}. \code{tr_fun} makes this package very versatile. With custom
+transition functions, you can take this software out of the geo-spatial context and, e.g., apply it to biomedical research.
 
-Going back to the ship routing example, consider that there are hurricanes in the Caribbean. Ships traveling from India to Australia do not care, but 
-ships traveling from Mexico to the Netherlands have to go around the storm and must not take the shortest path through the hurricane. You have ten 
-SpatVector polygons delineating the extent of the hurricane on ten different days. You want to know what the shortest paths are given that ships must go 
-around the polygon on that day. Calling \code{shortest_paths} ten times with ten different SpatRasters would be very inefficient. This would assemble 
-the graph ten times and recompute also paths unaffected by the hurricanes, such as the path between India and Australia, in each iteration. Instead, 
-pass the SpatVector polygons to \code{update_rst}. \code{shortest_paths} then produces the shortest paths for a hurricane-free route and all ten 
-hurricane days, only reestimating the paths that are affected by the hurricane polygon on a specific day.
+If \code{rst} produces a graph with no more than 2,147,483,647 edges, \code{tr_fun} can either be an R or an Rcpp C++
+function returning a numeric R vector. Beyond that limit, the number of edges exceed the maximum of elements that R's native data structures can store.
+The data then has to be kept in C++, and most function inputs and output are \code{Rcpp::XPtr} types. \link{max_edges} tells you how many edges your
+\code{rst} could produce and, hence, what type of \code{tr_fun} you may use. Check the
+\href{../doc/transition_functions.html}{transition functions vignette} for details.
 
-Applications to Earth should always pass a SpatRaster or RasterLayer to \code{rst}. The option to use a matrix or a list of matrices is meant for 
+Further boosting efficiency, \code{shortest_paths} allows you to handle multiple tasks in one function call. In the ship routing example, consider that
+there are hurricanes in the Caribbean. Ships traveling from India to Australia do not care, but ships traveling from Mexico to the Netherlands have to
+go around the storm and must not take the shortest path through the hurricane. You have ten SpatVector polygons delineating the extent of the hurricane
+on ten different days. You want to know what the shortest paths are given that ships must go around the polygon on that day. Calling
+\code{shortest_paths} ten times with ten different SpatRasters would be very inefficient. This would assemble the graph ten times and recompute also
+paths unaffected by the hurricanes, such as the path between India and Australia, in each iteration. Instead, pass the SpatVector polygons to
+\code{update_rst}. \code{shortest_paths} then produces the shortest paths for a hurricane-free route and all ten hurricane days, only reestimating the
+paths that are affected by the hurricane polygon on a specific day.
+
+Applications to Earth should always pass a SpatRaster or RasterLayer to \code{rst}. The option to use a matrix or a list of matrices is meant for
 applications to other planets, non-geo-spatial settings, and users who cannot install the terra package on their system.
 
-The largest source of runtime inefficiency is the quantity of non-NA pixels in the \code{rst} grid. Limit the \code{rst} argument to the relevant area. 
-E.g. crop the grid to the North Atlantic when computing shipping routes between Canada and France. And set regions through which the shortest path does 
+The largest source of runtime inefficiency is the quantity of non-NA pixels in the \code{rst} grid. Limit the \code{rst} argument to the relevant area.
+E.g., crop the grid to the North Atlantic when computing shipping routes between Canada and France. And set regions through which the shortest path does
 certainly not pass to NA.
 
-\code{shortest_paths} is optimized for computational performance. Most of its functions are written in C++ and it does not use a general purpose graph 
+\code{shortest_paths} is optimized for computational performance. Most of its functions are written in C++ and it does not use a general purpose graph
 library, but comes with its custom graph-theoritical implementation tailored to gridded inputs.
 
-The \href{../doc/spaths_introduction.html}{vignette} provides further details on the package.
+The \href{../doc/spaths_introduction.html}{introduction vignette} provides further details on the package.
 }
 \examples{
 \donttest{
@@ -266,4 +275,7 @@ shortest_paths(input_grid, origin_pts, update_rst = barriers)
 }
 \references{
 Dijkstra, E. W. 1959. "A note on two problems in connexion with graphs." \emph{Numerische Mathematik} 1 (1): 269–71.
+}
+\seealso{
+\link{max_edges}, \link{rnd_locations}.
 }

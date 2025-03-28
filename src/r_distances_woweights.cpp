@@ -15,7 +15,7 @@
 // [[Rcpp::export]]
 Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells,
   const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path,
-  const bool double_weights, const bool show_progress, const int bar_limit, const double radius2) {
+  const bool double_weights, const bool show_progress, const int bar_limit, const double radius2, const bool from_to_r) {
   
   const int n_paths = compute_n_paths(starts_targets, false, pairwise);
   const bool bar = show_progress && (n_paths <= bar_limit);
@@ -27,7 +27,8 @@ Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<int> starts = get_starts_i(starts_targets);
       const std::vector<int> targets = get_targets_i(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       // with precomputed weights
       if(pre) {
         std::vector<std::vector<double> > graph_weights = graph_weights_d(graph_to, coords, haversine, queen, ncores, true, radius2);
@@ -47,7 +48,8 @@ Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
       const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       if(pre) {
         std::vector<std::vector<double> > graph_weights = graph_weights_d(graph_to, coords, haversine, queen, ncores, true, radius2);
         dists_wweights(graph_to, graph_weights, n_cells, starts, targets, early_stopping, ncores, false, pairwise, false, starting_indices, show_progress,
@@ -69,7 +71,8 @@ Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<int> starts = get_starts_i(starts_targets);
       const std::vector<int> targets = get_targets_i(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       // with precomputed weights
       if(pre) {
         std::vector<std::vector<float> > graph_weights = graph_weights_f(graph_to, coords, haversine, queen, ncores, true, radius2);
@@ -89,7 +92,8 @@ Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
       const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       if(pre) {
         std::vector<std::vector<float> > graph_weights = graph_weights_f(graph_to, coords, haversine, queen, ncores, true, radius2);
         dists_wweights(graph_to, graph_weights, n_cells, starts, targets, early_stopping, ncores, false, pairwise, false, starting_indices, show_progress,
@@ -111,7 +115,7 @@ Rcpp::NumericVector r_dists_woweights_d(Rcpp::List& from_to, Rcpp::List& starts_
 // [[Rcpp::export]]
 Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_targets, Rcpp::List& coords, const std::size_t n_cells,
   const bool haversine, const bool queen, const int ncores, const bool pairwise, const bool pre, const bool early_stopping, const bool int_path,
-  const bool signed_weights, const bool show_progress, const int bar_limit, const double radius2) {
+  const bool signed_weights, const bool show_progress, const int bar_limit, const double radius2, const bool from_to_r) {
   
   const int n_paths = compute_n_paths(starts_targets, false, pairwise);
   const bool bar = show_progress && (n_paths <= bar_limit);
@@ -123,7 +127,8 @@ Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<int> starts = get_starts_i(starts_targets);
       const std::vector<int> targets = get_targets_i(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       // with precomputed weights
       if(pre) {
         std::vector<std::vector<int> > graph_weights = graph_weights_i(graph_to, coords, haversine, queen, ncores, true, radius2);
@@ -143,7 +148,8 @@ Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
       const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       if(pre) {
         std::vector<std::vector<int> > graph_weights = graph_weights_i(graph_to, coords, haversine, queen, ncores, true, radius2);
         dists_wweights(graph_to, graph_weights, n_cells, starts, targets, early_stopping, ncores, false, pairwise, false, starting_indices, show_progress,
@@ -165,7 +171,8 @@ Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<int> starts = get_starts_i(starts_targets);
       const std::vector<int> targets = get_targets_i(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells);
+      std::vector<std::vector<int> > graph_to = graph_to_i(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       // with precomputed weights
       if(pre) {
         std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(graph_to, coords, haversine, queen, ncores, true, radius2);
@@ -185,7 +192,8 @@ Rcpp::IntegerVector r_dists_woweights_i(Rcpp::List& from_to, Rcpp::List& starts_
       const std::vector<unsigned short int> starts = get_starts_u(starts_targets);
       const std::vector<unsigned short int> targets = get_targets_u(starts_targets);
       const std::vector<int> starting_indices = get_starting_indices_i(starts_targets, (int) starts.size(), targets.empty(), pairwise);
-      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells);
+      std::vector<std::vector<unsigned short int> > graph_to = graph_to_u(from_to, n_cells, from_to_r);
+      from_to[(from_to_r) ? "from" : "from_to"] = R_NilValue;
       if(pre) {
         std::vector<std::vector<unsigned short int> > graph_weights = graph_weights_u(graph_to, coords, haversine, queen, ncores, true, radius2);
         dists_wweights(graph_to, graph_weights, n_cells, starts, targets, early_stopping, ncores, false, pairwise, false, starting_indices, show_progress,

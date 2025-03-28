@@ -14,6 +14,8 @@
 #' spherical assumption is common in GIS functions, but deviates from Earth's exact shape.
 #'
 #' @return Returns a data.table, data.frame, or SpatVector object of unprojected (lonlat) points.
+#' 
+#' @seealso \link{shortest_paths}.
 #'
 #' @examples
 #' rnd_locations(1000)

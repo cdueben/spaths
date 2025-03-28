@@ -1,3 +1,6 @@
+# spaths 1.2.0
+* Add support for graphs with more edges than R can store
+
 # spaths 1.1.4
 * Replace hardcoded C++ function overloading with templates
 

@@ -114,5 +114,66 @@ convert_points <- function(v, rst, r_crs, nms_column, nms_specified, pairwise, r
   return(v)
 }
 
+# Get the maximum number of neighbors stored in an adjacency list in R
+get_max_neighbors <- function(n_cells, n_cells_na, queen, rst_ncol, rst_nrow, global) {
+  # Remove cross-boundary edges
+  max_neighbors <- n_cells * data.table::fifelse(queen, 8, 4) - rst_ncol * data.table::fifelse(queen, 6, 2)
+  if(!global) {
+    max_neighbors <- max_neighbors - rst_nrow * data.table::fifelse(queen, 6, 2)
+  }
+  
+  # Remove NA cells
+  if(queen) {
+    if(global) {
+      if(n_cells_na > rst_ncol) {
+        max_neighbors <- max_neighbors - 5 * rst_ncol - 8 * (n_cells_na - rst_ncol)
+      } else {
+        max_neighbors <- max_neighbors - 5 * n_cells_na
+      }
+    } else {
+      if(n_cells_na > 4L) {
+        max_neighbors <- max_neighbors - 12
+        n_cells_na <- n_cells_na - 4L                                          # corner cells
+        n_fringe_cells <- (rst_ncol + rst_nrow - 4L) * 2L
+        if(n_cells_na > n_fringe_cells) {
+          max_neighbors <- max_neighbors - n_fringe_cells * 5
+          n_cells_na <- n_cells_na - n_fringe_cells                            # fringe cells
+          max_neighbors <- max_neighbors - n_cells_na * 8
+        } else {
+          max_neighbors <- max_neighbors - n_cells_na * 5
+        }
+      } else {
+        max_neighbors <- max_neighbors - 3 * n_cells_na
+      }
+    }
+  } else {
+    if(n_cells_na > 4L) {
+      max_neighbors <- max_neighbors - 8
+      n_cells_na <- n_cells_na - 4L                                            # corner cells
+      n_fringe_cells <- (rst_ncol + rst_nrow - 4L) * 2L
+      if(n_cells_na > n_fringe_cells) {
+        max_neighbors <- max_neighbors - n_fringe_cells * 3
+        n_cells_na <- n_cells_na - n_fringe_cells                              # fringe cells
+        max_neighbors <- max_neighbors - n_cells_na * 4
+      } else {
+        max_neighbors <- max_neighbors - n_cells_na * 3
+      }
+    } else {
+      max_neighbors <- max_neighbors - 2 * n_cells_na
+    }
+  }
+  
+  return(max_neighbors)
+}
+
+# Check whether the C++ functions implement a conversion for the layer classes
+layer_class_check <- function(v_vars_classes) {
+  if(!all(v_vars_classes %chin% c("integer", "numeric", "character", "logical"))) {
+    v_vars_classes <- paste0(unique(v_vars_classes[!(v_vars_classes %chin% c("integer", "numeric", "character", "logical"))]), collapse = ", ")
+    stop("For graphs with potentially more than ", .Machine$integer.max, " edges, tr_fun's v parameters only accept integer, numeric, character, and ",
+      "logical, not ", v_vars_classes, ", layers")
+  }
+}
+
 # Avoid R CMD check note
 utils::globalVariables(c(".", "cell_numbers", "cell_numbers_shifted", "connected", "layer", "path", "starts", "from", "to", "xres", "yres"))
