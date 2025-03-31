@@ -76,8 +76,8 @@ Check the output's origins and destinations columns for the respective order.}
 only moves between horizontally or vertically adjacent cells. In the former case, it is also travels between diagonally adjacent cells. \code{"rook"} is
 more efficient than \code{"queen"} as it implies fewer edges.}
 
-\item{spherical}{Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g. a planet, if \code{rst} is a matrix or
-a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This
+\item{spherical}{Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g., a planet, if \code{rst} is a matrix
+or a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This
 argument has no effect when \code{rst} is a SpatRaster or RasterLayer.}
 
 \item{radius}{Radius of the object, e.g. planet, if \code{spherical = TRUE}. This argument has no effect when \code{rst} is a SpatRaster or RasterLayer.}

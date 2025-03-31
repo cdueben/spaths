@@ -5,6 +5,11 @@
 #' @param rst SpatRaster (terra), RasterLayer (raster), matrix, or list of matrices object. RasterLayers are converted to SpatRasters.
 #' @param contiguity \code{"queen"} (default) for queen's case contiguity or \code{"rook"} for rook's case contiguity. In the latter case, the algorithm 
 #' only moves between horizontally or vertically adjacent cells. In the former case, it is also travels between diagonally adjacent cells.
+#' @param spherical Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g., a planet, if \code{rst} is a matrix 
+#' or a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This 
+#' argument has no effect when \code{rst} is a SpatRaster or RasterLayer.
+#' @param extent Vector of length 4, specifying the extent of \code{rst}, if \code{rst} is a matrix or a list of matrices. It must contain xmin, xmax, 
+#' ymin, and ymax, in that order. The argument has no effect when \code{rst} is a SpatRaster or RasterLayer.
 #' 
 #' @details An edge is a connection between adjacent grid cells. With queen's case contiguity, each cell has up to 8 edges. With rook's case contiguity, 
 #' they have up 4 edges. It is up to 8 and 4, and not exactly 8 or 4, because \code{rst}'s outer pixels do not have neighbors in all directions.
@@ -14,21 +19,17 @@
 #' shortest path leaves the grid on one side and enters it on the opposite side. In all other cases, cells are only connected to their direct neighbors 
 #' within the grid.
 #' 
-#' Unprojected means that coordinates are expressed in degrees on a somewhat spherical object. A common unprojected coordinate reference system is 
-#' \code{epsg:4326}. In case your data refers to a roughly spherical object, such as a planet, the recommendation is to use unprojected coordinates. If you 
-#' do not know exactly what you are doing, projections can introduce large distortions in distances, which, e.g., feed into shortest paths. This is not 
-#' specific to this R package, but applies to geo-spatial applications in general.
-#' 
 #' Another source of edge removal are NA cells. There are no edges to or from NA cells in \code{rst}.
 #' 
+#' @md
 #' @returns Returns a numeric value denoting the maximum number of edges in \code{rst} that \code{shortest_paths} may store in an adjacency list in R at 
 #' some point. If there are any NA cells, the returned number is greater than the final graph's number of edges for two reasons. First, 
 #' \link{shortest_paths} assembles the adjacency list in multiple steps. Second, for efficiency reasons, \code{max_edges} does not evaluate where in the 
 #' grid the NA cells are and assumes the most conservative impact.
 #' 
 #' The returned value is the same number upon which \link{shortest_paths} decides to either construct the adjacency list in R or in C++. If the result is 
-#' larger than `r .Machine$integer.max` (the maximum number of elements native R objects can store), it chooses C++. Otherwise, it selects R. In the C++ 
-#' case, any \code{tr_fun} transition function must be an Rcpp C++ function with various restrictions (see the 
+#' larger than `r format(.Machine$integer.max, big.mark = ",")` (the maximum number of elements native R objects can store), it chooses C++. Otherwise, it 
+#' selects R. In the C++ case, any \code{tr_fun} transition function must be an Rcpp C++ function with various restrictions (see the 
 #' \href{../doc/transition_functions.html}{transition functions vignette}).
 #' 
 #' @seealso \link{shortest_paths}.
@@ -40,10 +41,10 @@
 #'   16200L, TRUE, c(0.8, 0.2)))
 #' 
 #' # Obtain maximum number of edges
-#' max_edges(rst)
+#' max_edges(input_grid)
 #' 
 #' @export
-max_edges <- function(rst, contiguity = c("queen", "rook")) {
+max_edges <- function(rst, contiguity = c("queen", "rook"), spherical = TRUE, extent = NULL) {
   
   # Convert RasterLayer to SpatRaster
   class_rst <- class(rst)
@@ -111,12 +112,11 @@ max_edges <- function(rst, contiguity = c("queen", "rook")) {
   queen <- contiguity == "queen"
   
   if(rst_terra) {
-    n_cells_na <- sum(stats::complete.cases(terra::values(rst)))
+    n_cells_na <- n_cells - sum(stats::complete.cases(terra::values(rst)))
   } else if(rst_list) {
-    rst <- lapply(rst, function(m) as.vector(t(m)))
-    n_cells_na <- n_cells - sum(stats::complete.cases(rst))
+    n_cells_na <- n_cells - sum(stats::complete.cases(lapply(rst, function(m) as.vector(m))))
   } else {
-    n_cells_na <- sum(is.na(rst))
+    n_cells_na <- sum(as.vector(is.na(rst)))
   }
   
   max_neighbors <- get_max_neighbors(n_cells, n_cells_na, queen, rst_ncol, n_cells / rst_ncol, global)

@@ -87,7 +87,7 @@ function(d, v1, v2) d / (6000 * exp(-3.5 * abs((v2 - v1) / d + 0.05)))
 
 <p style="text-align: justify">In C++, Tobler's hiking function could look as follows:</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 #include <Rcpp.h>
 #include <cmath>
@@ -125,7 +125,7 @@ travel_time <- function(d, v1, v2) {
 
 <p style="text-align: justify">This transition function is vectorized as well and does not require C++ for computational performance reasons. Yet, to showcase the C++ alternative (without function body) again:</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 #include <Rcpp.h>
 
@@ -138,7 +138,7 @@ Rcpp::NumericVector travel_time(Rcpp::NumericVector& d, Rcpp::DataFrame& v1, Rcp
 
 <p style="text-align: justify">In this example, the layers of `rst` are of different data types - numeric and integer. Thus `v1` and `v2` need to be data frames. If they were of the same type, you could turn `v1` and `v2` into matrices by setting `v_matrix` to `TRUE` and input them as C++ Armadillo matrices. This does not benefit performance and is just a convenience for Armadillo users.</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
@@ -166,7 +166,7 @@ Rcpp::NumericVector travel_time(Rcpp::NumericVector& d, arma::mat& v1, arma::mat
 
 <p style="text-align: justify">Tobler's hiking function looks as follows in this framework:</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 #include <Rcpp.h>
 #include <cmath>
@@ -196,7 +196,7 @@ Rcpp::XPtr<std::vector<double> > tobler(Rcpp::XPtr<std::vector<double> > d, Rcpp
 
 <p style="text-align: justify">The above code with a vectorization instruction:</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::plugins(openmp)]]
 #include <Rcpp.h>
@@ -230,7 +230,7 @@ Rcpp::XPtr<std::vector<double> > tobler(Rcpp::XPtr<std::vector<double> > d, Rcpp
 
 <p style="text-align: justify">With parallelism:</p>
 
-```{cpp, eval = FALSE}
+```{Rcpp, eval = FALSE}
 // [[Rcpp::plugins(cpp20)]]
 // [[Rcpp::plugins(openmp)]]
 #include <Rcpp.h>

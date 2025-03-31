@@ -34,8 +34,8 @@
 #' @param contiguity \code{"queen"} (default) for queen's case contiguity or \code{"rook"} for rook's case contiguity. In the latter case, the algorithm 
 #' only moves between horizontally or vertically adjacent cells. In the former case, it is also travels between diagonally adjacent cells. \code{"rook"} is 
 #' more efficient than \code{"queen"} as it implies fewer edges.
-#' @param spherical Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g. a planet, if \code{rst} is a matrix or 
-#' a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This 
+#' @param spherical Logical specifying whether coordinates are unprojected, i.e. lonlat, and refer to a sphere, e.g., a planet, if \code{rst} is a matrix 
+#' or a list of matrices. It defaults to \code{TRUE}. If \code{FALSE}, the function assumes the coordinates to originate from a planar projection. This 
 #' argument has no effect when \code{rst} is a SpatRaster or RasterLayer.
 #' @param radius Radius of the object, e.g. planet, if \code{spherical = TRUE}. This argument has no effect when \code{rst} is a SpatRaster or RasterLayer.
 #' @param extent Vector of length 4, specifying the extent of \code{rst}, if \code{rst} is a matrix or a list of matrices. It must contain xmin, xmax, 
@@ -250,6 +250,7 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
   } else {
     stop("rst must be a SpatRaster, RasterLayer, matrix, or list of matrices")
   }
+  rm(class_rst)
   
   # Check CRS
   if(rst_terra) {
@@ -303,6 +304,7 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
       rst <- lapply(rst, function(m) as.vector(t(m)))
       data.table::setDT(rst)
       if(!is.null(rst_names)) data.table::setnames(rst, rst_names)
+      rm(rst_names)
     } else {
       n_cells <- length(rst)
       rst_nrow <- nrow(rst)
@@ -669,6 +671,7 @@ shortest_paths <- function(rst, origins, destinations = NULL, output = c("distan
         if(args_used[3L]) tr_fun_args$y1 <- crd_xy[from_to[["from"]], 2L]
         if(args_used[4L]) tr_fun_args$x2 <- crd_xy[from_to[["to"]], 1L]
         if(args_used[5L]) tr_fun_args$y2 <- crd_xy[from_to[["to"]], 2L]
+        rm(crd_xy)
       } else {
         row_number <- as.integer(crd_cell_numbers / rst_ncol) # zero-indexed row numbers
         if(queen || args_used[2L] || args_used[4L]) col_number <- crd_cell_numbers - row_number * rst_ncol # zero-indexed column numbers
