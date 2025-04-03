@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <algorithm>
 #include <cmath>
-#include <execution>
 #include <type_traits>
 #include "structs.h"
 
